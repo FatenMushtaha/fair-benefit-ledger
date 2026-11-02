@@ -55,7 +55,7 @@ Laravel/framework auth, queue, cache and permission tables may be global infrast
 | (f) | Weighted scoring, tie breaks, quantity cutoff and waiting list | (b), (e), approved rule data |
 | (g) | Review and approval UI with reasoned decisions/exceptions | (a), (c)-(f) |
 | (h) | Idempotent ledger update after approval, withdrawal replacement handling | (b), (g) |
-| (i) | Excel/PDF exports and reports | (b), (g), (h) |
+| (i) | XLSX/CSV exports and reports; PDF format remains an open question | (b), (g), (h) |
 
 Detailed phase files: [01 Foundation](PLAN-01-foundation.md), [02 Core schema and import](PLAN-02-core-schema-import.md), [03 Matching and eligibility](PLAN-03-matching-eligibility.md), [04 Ranking and review](PLAN-04-ranking-review.md), [05 Ledger, exports and reports](PLAN-05-ledger-export-reports.md).
 

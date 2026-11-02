@@ -7,14 +7,14 @@ Compute explainable deterministic scores and ordered outcomes, allocate the avai
 ## Tables, files and classes
 
 - Tables: immutable `rule_versions`; `applicant_scores`; `cycle_results`; append-only `decisions` and `audit_events`; required `cycles`, applicant/member, match-review data.
-- Files/classes: rule configuration validator; plain PHP scoring, tie-break, quota/cutoff/allocation services and immutable result objects; simulation action; status/outcome enums; cycle run job; review policies and Livewire screens; translated criterion/reason labels.
-- Fixed sequence: hard eligibility filters, weighted criteria, optional quotas, configured tie-breakers, quantity cutoff and ordered waitlist. Persist criterion breakdown, missing/unverified inputs, rule version, rank and human-readable reason snapshot. No AI ranking.
+- Files/classes: rule configuration validator; plain PHP scoring, tie-break, cutoff/allocation services and immutable result objects; simulation action; status/outcome enums; cycle run job; review policies and Livewire screens; translated criterion/reason labels.
+- Fixed sequence: hard eligibility filters, weighted criteria, configured tie-breakers, quantity cutoff and ordered waitlist. Quotas are outside MVP scope. Persist criterion breakdown, missing/unverified inputs, rule version, rank and human-readable reason snapshot. No AI ranking.
 
 ## Acceptance criteria and tests
 
 - **AC-04.1** Invalid weights, conflicting rules or unavailable criterion data block a run with a clear validation report — service tests for each validation case.
 - **AC-04.2** Scores are deterministic and retain criterion breakdown and missing/unverified markers — unit tests for normalization, weighting, rounding and repeat-run identity.
-- **AC-04.3** Quotas and tie-breakers follow configured order and produce stable ranks — tests for quota boundaries and equal-score deterministic ordering.
+- **AC-04.3** Configured tie-breakers produce stable ranks for equal scores — deterministic ordering tests; quota behavior is excluded from MVP.
 - **AC-04.4** Cutoff accepts no more than available quantity and orders the remaining eligible applicants on a waitlist — allocation tests for zero, exact and excess capacity.
 - **AC-04.5** Results pin rule version, input/evaluation snapshot, and reasons — feature tests for persisted provenance and simulation without side effects.
 - **AC-04.6** Reviewer can approve, reject or grant reasoned exception only within their organization/permission; previous decisions remain auditable — feature/policy tests for allowed, denied and append-only correction.
@@ -37,4 +37,4 @@ Compute explainable deterministic scores and ordered outcomes, allocate the avai
 
 - Freeze the cycle and retain scored snapshots/decisions; correct via a new pinned rule version and rerun before approval. Do not delete audit/decision history. Roll back schema only when unreferenced.
 - Risks: policy errors, unverified data treated as zero, unstable tie-breaking, reviewer override affecting downstream allocation.
-- Open: pilot's 4-6 criteria, weights, quotas and tie-break order; automation mode; missing-data policy; team-member rule; appeals and exception authority.
+- Open: pilot's 4-6 criteria, weights and tie-break order; automation mode; missing-data policy; team-member rule; appeals and exception authority. Quotas remain out of scope unless separately approved later.

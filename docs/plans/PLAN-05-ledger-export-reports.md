@@ -7,7 +7,7 @@ After human approval, update cumulative participation ledger safely, support wit
 ## Tables, files and classes
 
 - Tables: `participations`, `cycles`, `cycle_results`, append-only `decisions`, `audit_events`, `exports`; report queries use scoped ledger, cycle, score and result records. Add posting/idempotency key if needed to prevent duplicate ledger writes.
-- Files/classes: transactional/idempotent ledger-post action; compensating reversal workflow; withdrawal/waitlist cascade action; queued streaming Excel/PDF exporters using approved packages; report query services; export policy/controller/Livewire actions; private expiring file storage; translations.
+- Files/classes: transactional/idempotent ledger-post action; compensating reversal workflow; withdrawal/waitlist cascade action; queued streaming XLSX/CSV exporters using approved packages; report query services; export policy/controller/Livewire actions; private expiring file storage; translations. PDF export is an open question and excluded from MVP scope.
 - Confirm permitted packages and installed versions before implementation. Avoid persisting unnecessary report copies of sensitive data.
 
 ## Acceptance criteria and tests
@@ -15,7 +15,7 @@ After human approval, update cumulative participation ledger safely, support wit
 - **AC-05.1** Only approved decisions post eligible acceptances to the cumulative ledger — feature tests for approval gate, status/date semantics and excluded withdrawals/noncompletion.
 - **AC-05.2** Repeated job execution does not duplicate ledger participations; correction uses a compensating auditable action — job/service tests for idempotence and reversal history.
 - **AC-05.3** Accepted participant withdrawal reopens capacity and moves next eligible waitlisted applicant according to a new deterministic allocation — workflow tests for seat replacement and audit trail.
-- **AC-05.4** Excel and PDF exports include authorized accepted/waitlist/exception lists and report headings in selected language — export tests for content, locale, bidi names and generated status.
+- **AC-05.4** XLSX and CSV exports include authorized accepted/waitlist/exception lists and report headings in selected language — export tests for content, locale, bidi names and generated status.
 - **AC-05.5** Coverage and prior-benefit summaries agree with scoped ledger records and explain filters — query/report tests against known synthetic fixtures.
 - **AC-05.6** Download access, jobs, and raw report joins remain organization-scoped, including guessed export IDs — policy/feature tests with two organizations.
 - **AC-05.7** Expired or failed exports cannot be downloaded and errors do not expose private paths — access/expiry tests.
@@ -29,12 +29,12 @@ After human approval, update cumulative participation ledger safely, support wit
 
 ## RTL/bilingual checklist
 
-- Excel/PDF headings, statuses, reasons, dates and number formats use matching translation keys and selected locale.
+- XLSX/CSV headings, statuses, reasons, dates and number formats use matching translation keys and selected locale.
 - Column order/alignment follows direction; mixed-script names/IDs remain readable and dates/numbers are locale-aware.
 - Test representative Arabic and English exports and reports, including RTL metadata/fonts and no raw translation keys.
 
 ## Rollback, risks and open questions
 
 - Stop export/posting workers before rollback. Remove incomplete generated files only after authorization/retention checks. Never erase audit/decision history; reverse ledger effects through compensating events and restore snapshots when needed.
-- Risks: duplicate posting, stale exports after decisions change, report leakage through raw joins, unsupported Arabic PDF fonts, large export memory/time.
-- Open: retention/deletion and appeal policy, exact report definitions and audience, export locale default, whether reports are scheduled (later scope), hosting/data-law requirements.
+- Risks: duplicate posting, stale exports after decisions change, report leakage through raw joins and large export memory/time.
+- Open: whether PDF export is added after MVP; retention/deletion and appeal policy, exact report definitions and audience, export locale default, whether reports are scheduled (later scope), hosting/data-law requirements.
