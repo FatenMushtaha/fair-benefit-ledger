@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\InvitationAcceptanceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\OrganizationMembershipController;
@@ -44,5 +45,12 @@ Route::middleware('auth')->group(function (): void {
         Route::delete('/organizations/{organization}/memberships/{membership}', [OrganizationMembershipController::class, 'destroy'])
             ->scopeBindings()
             ->name('organizations.memberships.destroy');
+
+        Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
+        Route::get('/imports/create', [ImportController::class, 'create'])->name('imports.create');
+        Route::post('/imports', [ImportController::class, 'store'])->name('imports.store');
+        Route::get('/imports/{batch}', [ImportController::class, 'show'])->name('imports.show');
+        Route::patch('/imports/rows/{row}', [ImportController::class, 'correct'])->name('imports.rows.correct');
+        Route::post('/imports/{batch}/mapping', [ImportController::class, 'confirmMapping'])->name('imports.mapping.confirm');
     });
 });
