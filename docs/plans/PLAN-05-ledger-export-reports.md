@@ -6,23 +6,23 @@ After human approval, update cumulative participation ledger safely, support wit
 
 ## Tables, files and classes
 
-- Tables: `participations`, `cycles`, `cycle_results`, append-only `decisions`, `audit_events`, `exports`; report queries use scoped ledger, cycle, score and result records. Add posting/idempotency key if needed to prevent duplicate ledger writes.
-- Files/classes: transactional/idempotent ledger-post action; compensating reversal workflow; withdrawal/waitlist cascade action; queued streaming XLSX/CSV exporters using approved packages; report query services; export policy/controller/Livewire actions; private expiring file storage; translations. PDF export is an open question and excluded from MVP scope.
+- Tables: tenant-scoped `participations`, `cycles`, `cycle_results`, append-only `decisions`, `audit_events`, `exports`; participation has a required tenant-scoped unique source-decision/posting key to prevent duplicate ledger writes. Report queries use scoped ledger, cycle, score and result records.
+- Files/classes: transactional/idempotent ledger-post action; compensating reversal workflow; withdrawal/waitlist cascade action; queued XLSX/CSV exporters using approved packages; report query services; export policy/controller/Livewire actions; private expiring file storage; translations. PDF export is excluded from MVP and remains an open future-scope question.
 - Confirm permitted packages and installed versions before implementation. Avoid persisting unnecessary report copies of sensitive data.
 
 ## Acceptance criteria and tests
 
-- **AC-05.1** Only approved decisions post eligible acceptances to the cumulative ledger — feature tests for approval gate, status/date semantics and excluded withdrawals/noncompletion.
+- **AC-05.1** Only valid, authorized approved decisions post eligible acceptances to the cumulative ledger — feature tests for approval gate, status/date semantics and excluded withdrawals/noncompletion.
 - **AC-05.2** Repeated job execution does not duplicate ledger participations; correction uses a compensating auditable action — job/service tests for idempotence and reversal history.
-- **AC-05.3** Accepted participant withdrawal reopens capacity and moves next eligible waitlisted applicant according to a new deterministic allocation — workflow tests for seat replacement and audit trail.
-- **AC-05.4** XLSX and CSV exports include authorized accepted/waitlist/exception lists and report headings in selected language — export tests for content, locale, bidi names and generated status.
-- **AC-05.5** Coverage and prior-benefit summaries agree with scoped ledger records and explain filters — query/report tests against known synthetic fixtures.
+- **AC-05.3** Accepted participant withdrawal reopens capacity and offers the seat to the next eligible waitlisted applicant through a new deterministic allocation; prior posting and decisions remain visible — workflow tests for seat replacement, duplicate prevention and audit history.
+- **AC-05.4** Authorized XLSX and CSV exports include accepted, waitlist and exception lists with translated headings; CSV neutralizes spreadsheet formula-injection cells — export tests for content, dangerous cell prefixes, locale, bidi names and generated status.
+- **AC-05.5** Essential reports provide cycle outcomes and prior-benefit/coverage summaries that agree with scoped ledger records and state their filters — query/report tests against known synthetic fixtures.
 - **AC-05.6** Download access, jobs, and raw report joins remain organization-scoped, including guessed export IDs — policy/feature tests with two organizations.
 - **AC-05.7** Expired or failed exports cannot be downloaded and errors do not expose private paths — access/expiry tests.
 
 ## Tenant-isolation checklist
 
-- Participation, export and report sources are tenant scoped; jobs carry organization/cycle IDs and re-establish scope.
+- Participation, export and report sources are tenant scoped; tenant-safe constraints prevent cross-organization links; jobs carry organization/cycle IDs and re-establish scope.
 - Every raw query/aggregate/join manually constrains `organization_id`; private storage paths are tenant-specific and non-guessable.
 - Export permissions are checked at creation and download; test organization A cannot enumerate or download B's artifacts.
 - Ledger posting and compensations carry tenant IDs and append audit events; test retries cannot duplicate or affect another tenant.
@@ -35,6 +35,8 @@ After human approval, update cumulative participation ledger safely, support wit
 
 ## Rollback, risks and open questions
 
-- Stop export/posting workers before rollback. Remove incomplete generated files only after authorization/retention checks. Never erase audit/decision history; reverse ledger effects through compensating events and restore snapshots when needed.
+- Stop export/posting workers before rollback. Remove incomplete generated files only after authorization/retention checks. Never erase audit/decision history; reverse ledger effects through compensating events and restore snapshots when needed. Never “undo” a posted participation by deleting it.
 - Risks: duplicate posting, stale exports after decisions change, report leakage through raw joins and large export memory/time.
-- Open: whether PDF export is added after MVP; retention/deletion and appeal policy, exact report definitions and audience, export locale default, whether reports are scheduled (later scope), hosting/data-law requirements.
+- MVP-blocking before live data: retention/deletion policy and hosting/data-law safeguards must be settled; define who may see person-level export fields under the approved permission matrix.
+- Spec-level: exact report filters/definitions, export locale default, stale-export invalidation, worker limits and safe CSV neutralization details.
+- PDF is an open question for a later scope decision. Scheduled reports and complex appeals are deferred; no PDF generation is in this MVP plan.
