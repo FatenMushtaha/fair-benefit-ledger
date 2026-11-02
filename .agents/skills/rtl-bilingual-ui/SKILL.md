@@ -12,6 +12,8 @@ Also follow the tailwindcss-development and laravel-best-practices skills; this 
 - Fonts must support both Arabic and Latin; set them as design tokens, not per component.
 - Numbers and dates: display with the locale in mind (Arabic-Indic or Western digits per user setting), and never parse user input without normalizing Arabic-Indic digits first. Use Carbon/Intl for dates, not manual formatting.
 - Mixed-script text (Arabic names inside English UI and vice versa): wrap user-provided names and identifiers with bdi or dir="auto" so they do not scramble punctuation or order.
-- Tables and exports: column order and alignment follow the direction; Excel/PDF exports support both languages.
-- Figma designs: implement faithfully; if a design only exists for one direction, mirror it logically and tell the owner what you assumed.
+- Tables and exports: column order and alignment follow the direction; XLSX/CSV exports support both languages. PDF export is not MVP scope unless separately approved.
+- Before frontend implementation, prepare/review Figma screens, reusable components, and design tokens for both directions, responsive layouts, accessibility, and validation/loading/empty/error/success states. Obtain the owner's explicit design approval. If approved designs are not available, do not invent or implement the frontend.
+- If an approved design covers only one direction, propose the logical RTL/LTR adaptation for owner review; do not implement an unapproved adaptation.
+- Backend-only slices may mark UI design as N/A with a brief reason.
 - Every new screen needs a feature test that renders it in both ar and en and asserts that dir is correct and no raw translation keys appear.
