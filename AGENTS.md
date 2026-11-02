@@ -207,3 +207,6 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
 </laravel-boost-guidelines>
+
+## Project skills
+Custom skills live in .agents/skills/. Use them in this workflow: intent-interview -> (owner: "intent approved") -> spec-writer -> (owner: "spec approved") -> plan-feature -> (owner: "plan approved") -> implement with tests -> feature-done (when the owner says "feature approved"). Always apply rtl-bilingual-ui for any UI work and tenant-isolation for any model, query, job or export. Intents live in docs/intents/, specs in docs/specs/, plans in docs/plans/. Never skip an approval gate.
