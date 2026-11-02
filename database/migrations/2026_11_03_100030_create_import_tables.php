@@ -60,6 +60,7 @@ return new class extends Migration
                 ->references(['organization_id', 'id'])
                 ->on('people')
                 ->nullOnDelete();
+            $table->unique(['organization_id', 'id']);
             $table->unique(['organization_id', 'import_batch_id', 'row_number']);
             $table->index(['organization_id', 'import_batch_id', 'status']);
         });
