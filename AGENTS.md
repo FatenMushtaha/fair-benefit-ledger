@@ -33,6 +33,7 @@ Idea/design stage. No planning or implementation has started yet. Wait for expli
 
 ## Git & GitHub workflow
 - Before starting ANY new feature or task, check docs/progress.md and git status. If the previous feature is not marked approved/merged, or there are uncommitted changes, STOP and ask me: "The previous feature is not approved yet. Do you want to approve it, commit, push and open a Pull Request before we start the next one?" Do not start the next feature until I answer. If I say yes, run the "feature approved" steps (including updating docs/progress.md). If I say no, note it in docs/progress.md as "not approved" and then continue.
+- At every gate (finish, push, open PR, merge) YOU ask me a yes/no question; I will only answer yes or no. Never push, open a PR or merge before I answer yes. After opening a PR, run the verification checklist in .agents/skills/feature-done/SKILL.md and report the result BEFORE asking me to merge.
 - The GitHub repo is PUBLIC. Never commit secrets, .env files, API keys, real personal data, or real applicant/beneficiary data. Use only fake or anonymized data in seeders, factories, tests and docs.
 - Never work directly on `main`.
 - One feature = one branch named `feature/<short-name>`. Design, planning or docs-only work uses `design/<name>` or `docs/<name>`.
