@@ -3,6 +3,7 @@
 | Feature | Status | Branch | PR | Date | Notes |
 |---|---|---|---|---|---|
 | AGENTS.md + project brief + git setup | done | main | — | 2026-11-02 | Initial project setup. |
+| Custom agent skills (6) | done | docs/agent-skills | - | 2026-11-02 | intent-interview, spec-writer, plan-feature, feature-done, rtl-bilingual-ui, tenant-isolation. |
 | Foundation: auth, organizations, roles, locale + RTL layout | planned | — | — | — | — |
 | Core schema: persons, programs, participations, cycles, rules, decisions, audit log | planned | — | — | — | — |
 | Import pipeline + column mapping + cleaning | planned | — | — | — | — |
