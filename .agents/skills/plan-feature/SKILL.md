@@ -1,12 +1,12 @@
 ---
 name: plan-feature
-description: Writes an implementation plan from an approved spec at docs/plans/PLAN-###.md, preferring the smallest change. Use after the owner says "spec approved" and before writing any code.
+description: Optional planning aid for reviewing/refining a high-level plan or preparing a draft Spec. It is not a required phase after Spec approval.
 ---
 # Plan feature
 
-Input: an approved spec in docs/specs/. If it is not approved, stop and ask.
+Use only when it helps during initial planning or Spec preparation. The owner must have approved the feature's scope-level planning baseline first. It may review a draft Spec or phase plan; it must not be used as a separate stage after final Spec approval.
 
-Output: docs/plans/PLAN-###.md. Write only inside docs/plans/. Do NOT edit source code, migrations or config while planning.
+Output: a draft refinement to be incorporated into the existing high-level plan or the Spec being prepared. Do not create a second detailed implementation plan, a post-Spec plan artifact, or a separate plan-approval gate. Write only planning/specification documentation. Do NOT edit source code, migrations or config while planning. Do not change owner-approved product scope.
 
 The plan must include:
 1. Summary of the smallest change that satisfies the spec.
@@ -18,4 +18,4 @@ The plan must include:
 7. Rollback note: how to undo this feature safely (migration rollback, data considerations).
 8. Risks and open questions.
 
-Finish by asking: "Do you want me to save this as a commit/PR?" and wait. Do not start implementation until the owner says "plan approved".
+Fold applicable refinements into the high-level plan or draft Spec and present them at that artifact's existing approval gate. This skill does not approve scope, approve a Spec, or authorize implementation. Implementation remains blocked until the owner explicitly says "spec approved".

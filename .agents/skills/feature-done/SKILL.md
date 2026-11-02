@@ -1,36 +1,32 @@
 ---
 name: feature-done
-description: Runs the project's finish-a-feature routine (checks, commit, push, Pull Request, progress update, next branch). Use when the owner says "feature approved", or before starting any new feature if the previous one is not approved yet.
+description: Runs final QA, review, PR verification, and the separately approved Git gates for a completed Spec-driven feature.
 ---
 # Feature done
 
-Follow the "Git & GitHub workflow" in AGENTS.md. This skill is the step-by-step version.
+Follow the lifecycle and Git/GitHub gates in `AGENTS.md`. This skill is the step-by-step final QA and release procedure.
 
-Before starting ANY new feature: read docs/progress.md and run `git status`. If the previous feature is not approved/merged, or there are uncommitted changes, STOP and ask: "The previous feature is not approved yet. Do you want to approve it, commit, push and open a Pull Request before we start the next one?" If the owner says no, record it in docs/progress.md as "not approved" and continue.
+Before starting any feature or Spec slice, read `docs/progress.md` and run `git status`. If the previous feature is not approved/merged, or there are uncommitted changes, stop and use the pre-feature approval question in `AGENTS.md`. Never bypass the owner's instruction. Implement only one approved Spec slice at a time. After completing and testing a slice, report acceptance evidence and wait for explicit owner approval before advancing to the next slice.
 
-When the owner says "feature approved" (or answers yes to the question above):
-1. Confirm you are on a feature branch, never main.
-2. Run `vendor/bin/pint --dirty --format agent`, then the narrowest relevant tests (`php artisan test --compact`, with a file path or --filter). If anything fails, stop and report; do not commit.
-3. PUBLIC REPO CHECK: confirm no .env, secrets, API keys, or real personal/applicant data are in the changes (only fake or anonymized data in seeders, factories, tests, docs).
-4. Commit in small logical steps using Conventional Commits.
-5. Push the branch and open a Pull Request with `gh pr create`: summary of what was built, tests run, schema changes, and any open questions.
-6. Show the PR link and WAIT for the owner's explicit confirmation to merge. Never merge, force-push or rewrite history without it.
-7. After the merge: update docs/progress.md (status, branch, PR link, date, key decisions; keep it short and link to docs/intents, docs/specs, docs/plans), then switch to updated main.
-8. Ask whether to create the next feature branch from main; do not start the next feature on your own.
+When all approved Spec slices are complete, perform final QA and report results before asking to commit:
+1. Confirm you are on the intended feature branch, never `main`; inspect the complete diff and verify it matches the approved Spec and design.
+2. Validate every acceptance criterion. Run relevant integration, security, authorization, tenant-isolation, bilingual/RTL, and regression tests; run `vendor/bin/pint --dirty --format agent` and relevant PHPUnit tests. Fix failures before proceeding.
+3. PUBLIC REPO CHECK: verify no `.env`, secrets, API keys, tokens, personal paths, or real personal/applicant data are included. Use only fake or anonymized test data.
+4. Review rollback behavior, tenant boundaries, auditability, deterministic decisions, documentation, and remaining risks/limitations. Update `docs/progress.md` for the owner-approved QA milestone.
+5. Ask for explicit commit approval. Only after yes, commit in small Conventional Commit steps. Then ask separately for push approval; only after yes, push the branch. Then ask separately for PR-creation approval; only after yes, open a PR with summary, tests, schema changes, and open questions.
+6. Never combine commit, push, PR creation, or merge approvals. A yes at one gate authorizes only that action.
 
-## Approval flow (I only answer yes/no)
-1. When the feature is finished (code written, tests pass, Pint clean), ask: "This feature looks done. Approve, commit, push and open a Pull Request?" Wait for yes.
-2. On yes: commit, push, `gh pr create`, then show the PR link.
-3. Second verification (do it yourself, on the PR, before asking me anything else):
-   a. `gh pr view`: OPEN, not draft, mergeable, no conflicts (never resolve conflicts yourself; tell me).
-   b. If stacked on another PR, make sure its base is correct and the diff has only its own changes.
-   c. `gh pr checks`: all pass if CI exists.
-   d. `gh pr diff`: PUBLIC REPO CHECK, no .env, secrets, keys, tokens, personal paths, or real personal/applicant data.
-   e. Run Pint and `php artisan test --compact` on the branch (say so if no tests exist yet).
-   f. docs/progress.md is updated for this feature.
-   g. Tenant isolation and RTL/bilingual checklists satisfied if the feature touched models or UI.
-4. Report the checklist as a short pass/fail list. If anything fails, stop and tell me; do not ask to merge.
-5. If everything passes, ask: "Everything checks out. Merge this PR into main?" Wait for yes.
-6. On yes: `gh pr merge --merge --delete-branch`, then `git checkout main && git pull`, verify `git status` is clean and the full tests pass on main, update docs/progress.md (status, PR link, date, decisions) through a small PR or ask me how to land it.
-7. Ask: "Start the next feature?" and do not start until I say yes.
-If I say no at any gate, record "not approved" in docs/progress.md and stop at that gate.
+## PR verification and merge gate
+
+After PR creation, run the checklist before asking to merge:
+
+- `gh pr view`: PR is open, not draft, mergeable, and targets the intended base. If stacked, verify base and own diff; never resolve conflicts without owner direction.
+- `gh pr checks`: all configured checks pass.
+- `gh pr diff`: public-repository check for secrets, keys, tokens, personal paths, and real personal/applicant data.
+- Re-run Pint and relevant tests on the PR branch; report if there are no applicable tests.
+- `docs/progress.md` accurately reflects approved milestones and PR details.
+- Tenant-isolation and RTL/bilingual checklists are complete where applicable.
+
+Report each checklist item as pass/fail with evidence. If a required item fails, stop and report the failure; do not request merge approval yet. If checks pass, ask for explicit merge approval. Never merge automatically. On yes, merge using the approved method, update `docs/progress.md`, switch to updated `main`, and verify the checkout. Ask before creating or starting any subsequent feature branch.
+
+If the owner declines a gate, stop before that action and record the actual milestone state accurately; never imply a later gate was approved or completed.
