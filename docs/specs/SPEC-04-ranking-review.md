@@ -19,22 +19,22 @@
 ## Requirements and non-functional rules
 
 - Eligibility is a hard filter before scoring. Only applicants with resolved identity and a valid, current eligibility snapshot enter the scoring set. Ineligible, unresolved, or blocked/missing-data applicants cannot be treated as zero or ranked as eligible.
-- MVP ranking has 4–6 owner-configured criteria, each with explicit input source, normalization/mapping, weight, and reason label. Criteria, weights, missing-data policy, tie-break order, automation mode and exception authority are **BLOCKED — OWNER DECISION REQUIRED**.
+- MVP ranking has 4–6 organization-configured criteria, each with explicit input source, normalization/mapping, weight, and reason label. The configuration must be complete before a run; missing required values block the run. Every acceptance requires a separate human final approval, and the final approver must differ from the person who made the underlying review decision. Reject/exception outcomes require a reason; exceptions do not post to the ledger.
 - Domain scoring/ranking/allocation are plain PHP, deterministic, independent from HTTP/Livewire/AI. Persist pinned rule version, input fingerprint, score breakdown, rank, outcome and reasons for every run.
 - Accepted allocation never exceeds capacity. Remaining eligible applicants have a stable ordered waitlist. Quotas are excluded. No AI output may influence eligibility, score, rank, cutoff or decision.
-- Human approval/rejection/exception requires owner-approved permission and a reason; decisions/audit are append-only. Reallocation creates a new immutable result run; prior runs and decisions remain available.
+- Human review decisions and final approvals require the owner-confirmed permission matrix and are append-only. Reallocation creates a new immutable result run; prior runs and decisions remain available. No automated acceptance is enabled in the MVP.
 
 ## Ordered implementation slices
 
 ### Slice 1 — Versioned ranking-rule configuration and validation
 
 - **Goal/scope:** represent owner-defined criteria and validate a complete ranking configuration before execution.
-- **Dependencies:** SPEC-02 rule sets/versions and cycles; SPEC-03 eligibility contract. **BLOCKED — OWNER DECISION REQUIRED** for pilot criteria, weights, mappings and owner rule approval.
+- **Dependencies:** SPEC-02 rule sets/versions and cycles; SPEC-03 eligibility contract. Criteria, mappings and weights are supplied in the organization/pilot configuration before the first run; no pilot-specific values are shipped as defaults.
 - **Tables/constraints:** immutable `rule_versions` config includes 4–6 criteria with stable keys, input source, owner-defined normalization/mapping, weight, translated label/reason key, tie-break sequence, missing-data policy and automation mode. Cycle pins a version. Schema validation rejects unknown keys and mutation after use.
-- **Classes/routes/components:** plain PHP `RankingRuleSchema`, `RankingRuleValidator`, `RuleVersion` model/immutability guard, `CycleRunStatus`, `CycleResultOutcome` and `DecisionOutcome` enums, admin policy and rule-edit routes/UI only after role matrix/Figma approval.
-- **Behavior:** accept only a complete configuration with exactly 4–6 unique criteria and valid nonnegative weights summing to 10,000 basis points; each criterion must define a deterministic mapping from source values to integer points 0–10,000. This is a technical storage/evaluation contract; owners decide criterion meaning and mapping. Rule version increments on every approved config change; used versions are immutable.
+- **Classes/routes/components:** plain PHP `RankingRuleSchema`, `RankingRuleValidator`, `RuleVersion` model/immutability guard, `CycleRunStatus`, `CycleResultOutcome` and `DecisionOutcome` enums, capability policy from the owner-confirmed matrix and rule-edit routes/UI matching the provisional Figma baseline.
+- **Behavior:** accept only a complete configuration with exactly 4–6 unique criteria and valid nonnegative weights summing to 10,000 basis points; each criterion must define a deterministic mapping from source values to integer points 0–10,000. Criteria meaning, source fields, and weights are configured by the organization; incomplete configurations block publication and runs. Every MVP cycle uses `ManualApprovalRequired`; no automated acceptance mode is available. Rule version increments on every approved configuration change; used versions are immutable.
 - **Authorization/tenant isolation:** rule changes require owner-approved organization capability; all rule-set/version queries are tenant-scoped and composite FKs enforce same organization.
-- **Edge/error handling:** absent criterion source, invalid mapping, duplicate key, missing-data policy, tie-break or automation mode blocks publication/run with field-level errors; no implicit default.
+- **Edge/error handling:** absent criterion source, invalid mapping, duplicate key, missing-data policy or incomplete owner configuration blocks publication/run with field-level errors; no implicit criterion/weight default.
 - **Acceptance/tests:**
   - **AC-04.1** Given a rule configuration with fewer than 4 or more than 6 criteria, invalid weights, duplicated keys or missing mappings, when validation runs, then it is rejected with field-level errors; unit tests cover each invalid boundary.
   - **AC-04.2** Given a complete owner-approved configuration, when a cycle starts, then it pins an immutable version and later edits create a new version; feature tests cover tenant scope and immutability.
@@ -60,32 +60,33 @@
 ### Slice 3 — Stable tie order, capacity cutoff and waiting list
 
 - **Goal/scope:** produce a total order and capacity-bounded accepted recommendation plus ordered waiting list.
-- **Dependencies:** Slice 2; owner-approved tie-break order and capacity for the cycle. **BLOCKED — OWNER DECISION REQUIRED** for tie-break priorities/final fallback.
+- **Dependencies:** Slice 2; approved stable tie-break order and configured capacity for the cycle.
 - **Tables/constraints:** `cycle_results(org,cycle_id,cycle_run_id,cycle_applicant_id,rank,outcome,tie_values,cutoff_marker,reason_snapshot)` unique `(org,cycle_run_id,cycle_applicant_id)`, indexes `(org,cycle_run_id,rank)` and `(org,cycle_run_id,outcome)`; composite FKs require run, applicant and cycle to match. `cycles.available_quantity` is nonnegative; `cycles.current_cycle_run_id` references a completed run through `(org,cycle_id,run_id)` so a run from another cycle cannot become current.
 - **Classes/routes/components:** plain PHP `RankCycleApplicants`, `AllocateCapacity`, `TieBreakComparator`, immutable allocation result objects; no quota service/table.
-- **Behavior:** order eligible applicants by exact weighted numerator descending, then owner-configured tie-break values. A full unique ordering policy must exist before a run. **Recommendation pending approval:** final unresolved ties ordered by original cycle registration timestamp ascending, then immutable applicant ID ascending; this is not active until owner approves. Assign first `min(eligible_count, capacity)` as recommended accepted, rest as ordered waiting; capacity zero accepts none. Persist reason snapshot and each tie value.
+- **Behavior:** order eligible applicants by exact weighted numerator descending, registration time ascending, then immutable applicant ID ascending. This fixed order is complete and deterministic. Assign the first `min(eligible_count, capacity)` as the accepted recommendation and the rest to the ordered waiting list; capacity zero accepts none. Persist the reason snapshot and each tie value.
 - **Authorization/tenant isolation:** run only in the active organization and read only its cycle/applicants; job tenant IDs explicit; guessed foreign cycle/applicant is denied.
-- **Edge/error handling:** negative/null capacity is rejected; absent tie policy blocks run; no eligible rows returns empty outcomes; duplicate tie keys invoke the approved final fallback or block.
+- **Edge/error handling:** negative/null capacity is rejected; no eligible rows returns empty outcomes; duplicate applicant IDs are rejected before ordering.
 - **Acceptance/tests:**
   - **AC-04.8** Given valid scores, tie policy and capacity, when allocation runs, then accepted count is at most capacity and remaining eligible applicants are ranked on the waitlist; tests cover zero, exact and excess capacity.
   - **AC-04.9** Given equal scores, when tie-breakers are applied, then result order is stable and every comparison value is persisted; tests cover equal values and final fallback after approval.
-  - **AC-04.10** Given no approved total-order policy, when allocation is requested, then no ranking/allocation is published; service test verifies the block.
+  - **AC-04.10** Given equal scores and registration times, when allocation is requested, then immutable applicant ID completes the stable order; service tests verify the final fallback.
 - **Definition of Done:** allocation is deterministic and never over capacity; no quota logic exists; prior run results remain immutable.
 
 ### Slice 4 — Review queue and reasoned decisions
 
 - **Goal/scope:** show reviewable results and allow authorized approve, reject or exception actions with reasons.
-- **Dependencies:** Slice 3; SPEC-01 approved role matrix; approved Figma for screen. **BLOCKED — OWNER DECISION REQUIRED** for reviewer/exception capabilities, automation mode and person-level visibility.
-- **Tables/constraints:** append-only `decisions(org,cycle_id,cycle_run_id,cycle_result_id,outcome,reason,actor_id,decided_at,supersedes_id?)`; append-only `audit_events`; composite FKs require referenced result/run/cycle to match; indexes `(org,cycle_result_id,decided_at)`. Enforce non-empty reason and valid state transition in service and DB-compatible validation.
-- **Classes/routes/components:** `CycleReviewPolicy`, `RecordCycleDecision` action, decision request/validator, named result list/detail/decision routes, Livewire review components after Figma, translated reason labels.
-- **Behavior:** display rank, criterion breakdown, eligibility/match evidence and reason snapshot; allow only owner-approved transitions. Approval/rejection/exception is appended, never overwrites prior decision. Automation mode remains a rule input but cannot auto-decide before owner selection. Exception requires reason and explicit approved authority.
+- **Dependencies:** Slice 3; SPEC-01 owner-confirmed role matrix and person-level visibility. The provisional Figma baseline is approved; inspect the review and independent-approval contexts before coding.
+- **Tables/constraints:** append-only `decisions(org,cycle_id,cycle_run_id,cycle_result_id,outcome,reason?,actor_id,decided_at,supersedes_id?)`; append-only `final_approvals(org,decision_id,final_approver_id,approved_at)` with one final approval per accepted decision and tenant-safe composite FKs; append-only `audit_events`. Require a non-empty reason for `Rejected` and `Exception`, validate state transitions, and enforce `final_approver_id != decisions.actor_id` in the service and database-compatible validation.
+- **Classes/routes/components:** `CycleReviewPolicy`, `RecordCycleDecision` action, decision request/validator, named result list/detail/decision routes, Livewire review components matching the provisional Figma baseline, translated reason labels.
+- **Behavior:** display rank, criterion breakdown, eligibility/match evidence and reason snapshot; allow only matrix-approved transitions. Review decisions are appended, never overwritten. A human `Accepted` review decision is a recommendation only; it cannot be posted until a separately authorized person with the confirmed final-approval capability approves it, using a different user ID from the decision actor. Rejection and exception require reasons; an exception does not become an accepted outcome or post to the ledger. No automated acceptance is allowed.
 - **Authorization/tenant isolation:** membership + active org + approved capability required for list/detail/mutation; policy rechecks all IDs and tenant composite relationships; unauthorized users cannot access reason/person data.
 - **Edge/error handling:** stale result run requires refresh; missing reason/invalid transition/unknown outcome is rejected; unavailable reviewer authority fails closed; concurrent decisions use optimistic version check and preserve both attempted audit context and winning decision.
 - **Acceptance/tests:**
-  - **AC-04.11** Given an authorized reviewer and current result, when they approve/reject/grant an allowed exception with a reason, then one new decision and audit event are appended; feature tests cover each allowed transition.
-  - **AC-04.12** Given a missing reason, unauthorized role, stale result or foreign ID, when a decision is attempted, then it is denied without altering result/decision history; policy/feature tests cover all cases.
-  - **AC-04.13** Given approved Figma and either locale, when the review screen renders, then it shows translated reason/evidence with correct direction and no raw keys; render tests cover `ar` and `en`.
-- **Definition of Done:** owner matrix and design approved; all decisions reasoned, tenant-authorized and append-only; no unapproved automation policy is enabled.
+  - **AC-04.11** Given an authorized Reviewer and current result, when they record an allowed accept/reject/exception decision, then one new decision and audit event are appended; reject/exception require a non-empty reason; feature tests cover each allowed transition.
+  - **AC-04.12** Given an accepted review decision, when a different authorized person with the confirmed final-approval capability approves it, then a separate final-approval record is appended; the decision actor cannot approve their own decision; feature tests cover distinct-actor and authorization boundaries.
+  - **AC-04.13** Given a rejected/exception decision with no reason, an unauthorized role, same-actor approval, stale result or foreign ID, when a decision/approval is attempted, then it is denied without altering result or decision history; policy/feature tests cover all cases.
+  - **AC-04.14** Given the provisional Figma baseline and either locale, when the review screen renders, then it shows translated reasons/evidence with correct direction and no raw keys; render tests cover `ar` and `en`.
+- **Definition of Done:** owner-confirmed matrix and relevant screen context are reviewed; all review decisions and final approvals are distinct-actor, reasoned where required, tenant-authorized and append-only; no automated acceptance is enabled.
 
 ### Slice 5 — Re-run and allocation history
 
@@ -97,19 +98,19 @@
 - **Authorization/tenant isolation:** active-org policy for rerun; all inputs/results same tenant; job payload explicitly contains organization/cycle/run IDs.
 - **Edge/error handling:** concurrent reruns serialize per cycle or fail with retryable conflict; incomplete jobs retain failed run diagnostics without becoming current; audit append failure rolls back publication.
 - **Acceptance/tests:**
-  - **AC-04.14** Given a completed current run and changed source, when recalculation completes, then a new full run becomes current atomically and old decisions/results remain unchanged; workflow tests verify.
-  - **AC-04.15** Given a failed or cross-tenant rerun, when it executes, then current run stays unchanged and no foreign result is written; job tests cover failure and isolation.
+  - **AC-04.15** Given a completed current run and changed source, when recalculation completes, then a new full run becomes current atomically and old decisions/results remain unchanged; workflow tests verify.
+  - **AC-04.16** Given a failed or cross-tenant rerun, when it executes, then current run stays unchanged and no foreign result is written; job tests cover failure and isolation.
 - **Definition of Done:** current pointer changes only after complete successful run; rerun is idempotent/retry-safe; history remains auditable.
 
 ## Rollback and test strategy
 
 - Stop scoring/ranking jobs before schema rollback. Keep completed run snapshots and decisions. Correct via a new run/decision; never delete or rewrite prior outcomes. Roll back run tables only if no decision or ledger references exist.
 - PHPUnit unit tests cover configuration validation, fixed-point arithmetic, deterministic order and capacity. Feature/job tests cover tenant isolation, authorization, reason requirements, snapshots, failure/retry and history. All fixtures synthetic.
-- Manual verification: compare approved review screen against Figma in Arabic/English and confirm reviewers can explain scores/reasons.
+- Manual verification: compare affected review/approval screens against the provisional Figma baseline in Arabic/English and confirm reviewers can explain scores/reasons before coding the UI slice.
 
 ## Open questions / conflicts
 
-- **BLOCKED — OWNER DECISION REQUIRED:** pilot's 4–6 criteria, source fields/mappings, weights, missing-data policy, tie-break order/final fallback, and automation/review mode. Recommendation: block a run when a required criterion is missing/unverified; use explicit manual approval for every acceptance until an automation mode is approved; this is safest but increases review workload. For a final exact score tie, recommend registration time ascending then immutable applicant ID ascending; approve or replace before use.
-- **BLOCKED — OWNER DECISION REQUIRED:** reviewer and exception authority in the permission matrix; person-level visibility. Recommendation: permit exceptions only to explicitly named reviewer/admin capabilities, require reason, and prohibit self-approval; this adds separation of duties but requires a designated approver.
+- **Configuration checkpoint before the first ranking run:** each pilot must provide its 4–6 criteria, source fields, mappings, weights and missing-data policy. Incomplete configuration blocks the run; the Spec defines no sample criteria or weights.
+- **BLOCKED before SPEC-04 Slice 4 authorization implementation:** confirm the detailed SPEC-01 permission matrix and person-level visibility. The distinct-actor final-approval rule and reasoned rejection/exception policy are approved.
 - **No quotas:** capacity is a single cycle quantity. Quota allocation, advanced ranking and what-if simulation are not in this Spec.
 - **Technical refinement:** `cycle_runs` and run-keyed score/result snapshots make plan-required provenance and non-destructive reruns explicit; this adds no product feature.

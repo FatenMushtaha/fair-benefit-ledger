@@ -72,9 +72,9 @@ Priority criteria are often undocumented, so it is hard to explain to applicants
 
 Every rule can be configured per organization. The agreed core rules:
 
-- **No simultaneous participation:** the maximum number of active projects per person = 1.
-- **Waiting period:** a person cannot be accepted into a new project until a set period (default 12 months) has passed since the end date of their previous project. Eligibility is evaluated at the start date of the new project.
-- **Withdrawals do not count:** someone who registered and withdrew, or did not complete, is not counted as a real beneficiary, so the waiting period does not apply. Their participation stays visible in the ledger.
+- **No simultaneous participation:** the maximum number of active projects per person = 1. `Accepted` and `Active` participations count toward this limit.
+- **Waiting period:** only `Completed` participation counts as a completed benefit. For incubator programs, the default waiting period is 12 calendar months from the completed participation's end date; other sectors require an explicit configured period. Eligibility is evaluated at the start date of the new project.
+- **Withdrawals and noncompletion do not count as completed benefits:** someone who registered and withdrew, or did not complete, is not counted for the waiting-period rule. Their participation stays visible in the ledger.
 
 Edge cases and how they are handled:
 
@@ -223,6 +223,9 @@ A pilot with one or two organizations: a past list and a new list (a sample or a
 - The platform name.
 - The launch markets, the data protection laws, and where the data is hosted.
 - Pricing.
-- The policy for teams when a member is ineligible.
-- The first pilot organization and its rules and criteria.
-- Whether the default waiting period differs between sectors (the current default is 12 months for incubators).
+- The first pilot organization and its configurable import and ranking rules.
+- The detailed role-permission matrix and person-level visibility.
+- Report/export audiences, field allowlist and expiry values.
+- Encryption and retention/deletion safeguards before live personal data is used.
+
+The owner-approved MVP policy baseline, including human review for mixed-eligibility teams and the completed-benefit distinction, is recorded in [MVP Policy Baseline](decisions/MVP-POLICY-BASELINE.md). These decisions do not expand MVP scope.

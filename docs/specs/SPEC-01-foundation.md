@@ -9,8 +9,8 @@
 
 | Section 17 requirement | Specification coverage |
 |---|---|
-| Authentication and basic roles | Slices 1 and 3 (role capabilities remain owner-blocked) |
-| Arabic/English interface and RTL/LTR | Slices 4–5 (front-end implementation waits for approved Figma) |
+| Authentication and basic roles | Slices 1 and 3 (detailed permission matrix confirmation remains required before authorization implementation) |
+| Arabic/English interface and RTL/LTR | Slices 4–5 (derive from provisional Figma baseline and verify affected screens before coding) |
 | Tenant security boundary supporting the MVP | Slices 1–3 |
 
 **Plan acceptance trace:** PLAN-01 AC-01.1 → Slice 1; AC-01.2 → Slice 2; AC-01.3 → Slice 3; AC-01.4 → Slices 4–5; AC-01.5 → Slices 1–2.
@@ -20,11 +20,28 @@
 ## Requirements and non-functional rules
 
 - A user may belong to multiple organizations and must explicitly select an active organization. Every switch and request revalidates current membership and fails closed on missing, stale, disabled, or guessed context.
-- Initial role keys are Admin, Reviewer, Data Entry, Viewer. **Capabilities and whether memberships support one or multiple roles are BLOCKED — OWNER DECISION REQUIRED.**
-- Authentication/account-provisioning flow is **BLOCKED — OWNER DECISION REQUIRED**. Recommendation: first-party session authentication with organization-invited memberships; this reduces unapproved organization creation but requires manual onboarding.
+- Initial role keys are Admin, Reviewer, Data Entry, Viewer, with exactly one role per organization membership. Use first-party session authentication and invited organization memberships; do not create organizations through public self-service.
+- Authorization is fail-closed and uses only the owner-confirmed permission matrix below. Role names grant no unstated capabilities. The matrix is proposed for confirmation; SPEC-01 Slice 3 and all dependent authorization enforcement remain blocked until the owner confirms it.
 - Tenant data is inaccessible without a validated active organization. Organization membership is the only way to enter tenant context.
-- Locale is per-user Arabic or English; rendered documents set `lang` and `dir`. All UI strings have matching `lang/en` and `lang/ar` keys. Frontend layout is blocked until approved Figma screens/tokens exist.
+- Locale is per-user Arabic or English; rendered documents set `lang` and `dir`. All UI strings have matching `lang/en` and `lang/ar` keys. Use the provisional Figma baseline; inspect affected contexts and critical interactions before coding, and derive responsive/RTL behavior from the existing system.
 - Tenant tables always include non-null `organization_id`; policies, scoped relations, constraints, jobs and raw queries all enforce the same boundary. Audit records are append-only.
+
+## Proposed least-privilege permission matrix — owner confirmation required before authorization
+
+This matrix records the approved role purpose and proposes the narrowest concrete actions needed for MVP. Only the role descriptions and one-role-per-membership rule are approved. `Proposed` rows remain unenforceable until the owner confirms exact data visibility and action scope. Every permission is limited to the active organization.
+
+| Action | Admin | Reviewer | Data Entry | Viewer |
+|---|---|---|---|---|
+| Sign in, select a current membership, and change own locale | Yes | Yes | Yes | Yes |
+| Manage organization settings and memberships; invite/deactivate members and assign one role | Yes | — | — | — |
+| Upload, map, inspect quality, and correct source-derived import fields while preserving raw data | — | — | Yes | — |
+| Read person/case evidence needed to perform the assigned workflow | — | Proposed: case review only | Proposed: source rows being imported/corrected only | — |
+| Resolve match candidates and record reasoned eligibility/case review decisions | — | Yes | — | — |
+| Independently final-approve an acceptance | — | Proposed: only when a different user from the underlying decision-maker | — | — |
+| Read aggregate dashboard and owner-approved reports | Proposed: org administration context only | Proposed: review context only | Proposed: import context only | Proposed: restricted read-only |
+| View person-level reports, create/download exports, or read audit history | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval |
+
+No capability may be inferred from a role label. The owner must confirm or revise every `Proposed` cell, person-level field visibility, report audience, and export/audit access before SPEC-01 Slice 3 or any authorization-dependent slice is implemented. The final-approval distinct-actor rule is approved and must be enforced even if the exact role assignment changes.
 
 ## Cross-Spec execution order
 
@@ -34,25 +51,25 @@
 4. SPEC-04 scores only SPEC-03 eligible applicants and persists immutable allocation runs.
 5. SPEC-05 posts only valid SPEC-04 decisions, then provides tenant-scoped ledger reports/exports.
 
-Frontend slices in any Spec remain blocked until their Figma designs are approved. A blocked policy slice does not prevent independent technical slices from proceeding.
+The owner has accepted the existing Figma file as the provisional MVP visual baseline. Use its design system and derive responsive, Arabic/RTL and English/LTR behavior consistently; do not require a separate frame for every locale or viewport. Inspect only the affected existing screen contexts before coding each UI slice, and add no interaction beyond the Specs. A blocked policy slice does not prevent independent technical slices from proceeding.
 
 ## Ordered implementation slices
 
 ### Slice 1 — Authentication, organization and membership foundation
 
-- **Goal/scope:** create root organizations and users, secure sign-in/out, and represent many-to-many memberships. **BLOCKED — OWNER DECISION REQUIRED** for authentication/account provisioning and invitation/assignment flow; do not choose the recommendation without approval.
+- **Goal/scope:** create root organizations and users, use first-party session sign-in/out, and represent one-role-per-organization memberships created through invitations. No public self-service organization creation.
 - **Dependencies:** none; this is the foundation for all later Specs.
-- **Tables/constraints:** global `users`; global `organizations`; `organization_user(organization_id,user_id,role_key,status,created_at,updated_at)`, unique `(organization_id,user_id)`, FKs to organization and user. Whether `role_key` is singular or membership roles are many-to-many is blocked; schema must follow the approved answer. Create the tenant-scoped append-only `audit_events(organization_id,actor_id,event_type,subject_type,subject_id,reason,payload,occurred_at,correlation_id)` base here so membership/security changes are auditable before domain imports exist.
-- **Classes/routes/components:** auth provider/routes and login/logout requests; `User`, `Organization`, `OrganizationMembership`; membership assignment service/policy. Exact auth mechanism follows owner decision.
-- **Behavior:** unauthenticated protected requests redirect/respond according to the selected first-party auth flow; membership is created only by an authorized provisioning action; deactivated membership is not usable. Membership creation, revocation and role changes append audit events in the same transaction. No public self-service organization creation unless explicitly approved.
+- **Tables/constraints:** global `users`; global `organizations`; `organization_user(organization_id,user_id,role_key,status,created_at,updated_at)`, unique `(organization_id,user_id)`, FKs to organization and user. Store exactly one `role_key` per membership. Create the tenant-scoped append-only `audit_events(organization_id,actor_id,event_type,subject_type,subject_id,reason,payload,occurred_at,correlation_id)` base here so membership/security changes are auditable before domain imports exist.
+- **Classes/routes/components:** first-party session auth provider/routes and login/logout requests; `User`, `Organization`, `OrganizationMembership`; invitation and membership assignment service/policy. Role-gated behavior uses the confirmed matrix only.
+- **Behavior:** unauthenticated protected requests use the first-party session flow; a membership is created only through an authorized invitation/assignment; deactivated membership is not usable. Membership creation, revocation and role changes append audit events in the same transaction. Public self-service organization creation is excluded.
 - **Authorization/tenant isolation:** never infer organization from an untrusted submitted ID; membership mutation must be authorized. Tenant access is unavailable until a membership and active context are both verified.
 - **Edge/error handling:** duplicate membership returns a validation conflict; unknown, disabled or revoked accounts receive safe generic auth errors; provisioning failure leaves no partial membership.
 - **Acceptance/tests:**
   - **AC-01.1** Given an unauthenticated user, when a protected route is requested, then access is denied/redirected by the approved auth flow; feature tests cover unauthenticated access and logout/session invalidation.
-  - **AC-01.2** Given no approved provisioning permission, when a user submits membership creation, then no organization or membership is created; feature tests cover allowed and denied provisioning after the owner-approved flow is encoded.
+  - **AC-01.2** Given a valid invitation from an authorized Admin, when the invitee accepts, then only the invited organization membership and one assigned role are created; unauthorized, expired, duplicate, or guessed-organization invitations create no membership; feature tests cover allowed and denied provisioning.
   - **AC-01.3** Given two active memberships, when membership records are loaded, then each is organization-scoped and unique; database tests cover duplicate and cross-organization references.
   - **AC-01.4** Given membership creation, revocation or role change, when it commits, then one append-only tenant audit event records actor, subject, time and reason; feature tests cover atomicity and denied mutation.
-- **Definition of Done:** owner decision recorded; auth/provisioning matches it; membership constraints and authorization tests pass; fake data only; no tenant route is reachable without authentication. Runtime DB credentials may insert/select audit rows but cannot update/delete them; schema migrations use a separate privileged connection.
+- **Definition of Done:** first-party session auth and invitation-only provisioning match this Spec; membership constraints and authentication tests pass; fake data only; no tenant route is reachable without authentication. Runtime DB credentials may insert/select audit rows but cannot update/delete them; schema migrations use a separate privileged connection.
 
 ### Slice 2 — Active organization context and tenant boundary
 
@@ -72,7 +89,7 @@ Frontend slices in any Spec remain blocked until their Figma designs are approve
 ### Slice 3 — Organization authorization and role policy
 
 - **Goal/scope:** enforce the owner-approved role-permission matrix for every action, with membership and active organization checks.
-- **Dependencies:** Slice 1 membership; Slice 2 active context. **BLOCKED — OWNER DECISION REQUIRED** until the permission matrix, person-level visibility and one/multiple-role model are approved.
+- **Dependencies:** Slice 1 membership; Slice 2 active context. **BLOCKED — OWNER CONFIRMATION REQUIRED** for the detailed permission matrix and person-level visibility in this Spec.
 - **Tables/constraints:** membership role assignment as decided by owner; if separate permissions are adopted, assignments must be scoped to organization. No role capability may be seeded before approval.
 - **Classes/routes/components:** policies/gates for organization and membership; centralized authorization mapping; endpoint middleware where appropriate. No UI permission controls before approved design.
 - **Behavior:** authorization evaluates authenticated user + active organization + current membership + approved role/capability on each action; denial is default. Do not infer capabilities from role names.
@@ -81,7 +98,7 @@ Frontend slices in any Spec remain blocked until their Figma designs are approve
 - **Acceptance/tests:**
   - **AC-01.8** Given an owner-approved matrix, when each role attempts each defined action within its organization, then only approved actions succeed; policy/feature tests cover every matrix cell and negative case.
   - **AC-01.9** Given an unknown role, absent active org, or cross-org identifier, when an action is attempted, then it is denied; tests cover fail-closed behavior.
-- **Definition of Done:** owner-approved matrix is the single policy source; all matrix rows have tests; no role capability is inferred or silently granted.
+- **Definition of Done:** owner-confirmed matrix is the single policy source; all matrix rows have tests; no role capability is inferred or silently granted.
 
 ### Slice 4 — Locale persistence and request localization
 
@@ -99,8 +116,8 @@ Frontend slices in any Spec remain blocked until their Figma designs are approve
 
 ### Slice 5 — Approved bilingual shell and foundation screens
 
-- **Goal/scope:** implement only owner-approved Figma frames/tokens for sign-in, organization selection, locale, and shell.
-- **Dependencies:** Slices 1–4; **BLOCKED — OWNER DECISION REQUIRED** until approved Figma screens/tokens and accessibility/responsive states are supplied.
+- **Goal/scope:** implement sign-in, organization selection, locale, and shell using the approved provisional Figma visual baseline and shared design tokens.
+- **Dependencies:** Slices 1–4; provisional Figma visual baseline is approved. Before coding, inspect the specific sign-in, organization-selection and shell contexts and verify that critical empty/error/loading interactions are represented; derive responsive and RTL/LTR behavior from the shared design system without requiring duplicate frames.
 - **Tables/constraints:** none.
 - **Classes/routes/components:** Blade layout and reusable Livewire/Blade components exactly matching approved designs; translation keys in paired language files; logical Tailwind utilities.
 - **Behavior:** set HTML `lang`/`dir`; adapt only approved screen states for responsive, loading, empty, validation, error and success behavior. Do not invent screens, flows, colors, fonts or role-visible actions.
@@ -109,17 +126,16 @@ Frontend slices in any Spec remain blocked until their Figma designs are approve
 - **Acceptance/tests:**
   - **AC-01.12** Given approved designs and locale `ar` or `en`, when each screen renders, then it matches the corresponding design contract, direction and translation keys; feature tests cover both locales and no raw keys.
   - **AC-01.13** Given a user lacks a membership, when organization selection renders, then no tenant data is disclosed and the approved empty/error state appears; feature test covers the boundary.
-- **Definition of Done:** design approval recorded; responsive/accessibility states reviewed; Arabic and English render tests pass; no unapproved UI behavior exists.
+- **Definition of Done:** affected provisional-baseline screens and critical interactions are reviewed; responsive/accessibility states are verified; Arabic and English render tests pass; no unapproved UI behavior exists.
 
 ## Cross-slice rollback and test strategy
 
 - Use reversible schema changes before account data exists; after memberships exist, preserve users and migrate membership data deliberately. Never delete audit events. Revoke active sessions when membership is revoked.
 - PHPUnit feature tests with fake organizations/users cover authentication, membership, tenant boundaries, authorization matrix and bilingual rendering. Add unit tests only for isolated policy/value logic. Run tests during each implementation slice and regression tests across prior slices.
-- Manual verification: compare implemented screen states against approved Figma; accessibility and responsive behavior require design review in both directions.
+- Manual verification: compare implemented screen states against the provisional Figma baseline; accessibility and responsive behavior require review in both directions.
 
 ## Open questions / conflicts
 
-- **BLOCKED — OWNER DECISION REQUIRED:** authentication/account creation/recovery and membership invitation/assignment flow. Recommendation: first-party session auth and invited memberships.
-- **BLOCKED — OWNER DECISION REQUIRED:** role-permission matrix, person-level visibility, and one vs multiple roles per membership. Recommendation: use the least-privilege proposal in [Plan 01](../plans/PLAN-01-foundation.md)—Admin manages organization membership/settings; Reviewer decides assigned/current cases with reasons; Data Entry imports/corrects source rows; Viewer reads approved lists/reports without raw-file access—and one role per membership. This keeps policy small but limits task separation; approve/revise each capability and visibility before enforcement.
-- **BLOCKED — OWNER DECISION REQUIRED:** Figma screens/tokens before Slice 5 frontend implementation.
-- **BLOCKED before live personal data:** jurisdiction/hosting, encryption and retention/deletion policy.
+- **BLOCKED before SPEC-01 Slice 3 or any authorization implementation:** owner confirmation of the proposed permission matrix, exact person-level visibility, and report/export/audit capabilities. No role capability may be seeded or enforced before confirmation.
+- **BLOCKED before live personal data:** jurisdiction/hosting, encryption, and retention/deletion policy. Use synthetic data until these safeguards are approved.
+- **Provisional visual baseline:** owner-approved for MVP. Slice-specific detailed visual inspection and verification of critical interactions remain required before coding; no additional locale/device variants are required when the existing design system covers them.

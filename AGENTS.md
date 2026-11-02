@@ -14,7 +14,7 @@ Bilingual (Arabic/English) SaaS that helps organizations with limited opportunit
 - AI/LLM only for suggestions (column mapping, similar names, text cleaning); never decides eligibility or ranking.
 - Rules are versioned; every Cycle stores the rule version it ran with.
 - Audit trail is append-only (no updates/deletes) and records who/what/when/reason.
-- Name matching: normalized name columns + blocking keys, never all-against-all; confidence bands (high/medium/low) with configurable thresholds; medium goes to human review.
+- Name matching: normalized name columns + blocking keys, never all-against-all; use versioned high/medium/low confidence bands under the approved owner-configured match policy. Only exact owner-designated authoritative identifier matches may auto-link; name candidates remain medium/human-reviewed and low-confidence cases stay separate.
 - Use Enums (TitleCase keys) for statuses.
 
 ## Pre-approved
@@ -24,11 +24,13 @@ Bilingual (Arabic/English) SaaS that helps organizations with limited opportunit
 
 ## Confirmed Plan 01 decisions
 - A user may belong to multiple organizations and must select an active organization.
-- Initial roles are Admin, Reviewer, Data Entry, and Viewer. The permission matrix is not approved; do not infer role capabilities.
-- Figma designs are not yet available. Screens, reusable components, and design tokens must be prepared and approved before frontend implementation. Do not invent UI decisions.
+- Use first-party session authentication and organization-invited memberships; no public self-service organization creation.
+- Use one role per organization membership: Admin, Reviewer, Data Entry, and Viewer. Admin manages organization settings and membership; Reviewer performs case review; Data Entry handles imports and source corrections; Viewer has restricted read-only access. The detailed permission matrix and person-level visibility require confirmation before authorization implementation; do not infer further capabilities from role names. See [MVP policy baseline](docs/decisions/MVP-POLICY-BASELINE.md).
+- The existing Figma file is the provisional visual baseline for the MVP. Derive responsive and Arabic/RTL and English/LTR behavior from its design system; do not require separate frames for every locale or viewport. Inspect affected screens and critical interactions before their UI slices; do not invent product behavior.
+- Approved eligibility baseline: mixed-eligibility teams require human review; `Accepted` and `Active` count for the active-project limit; only `Completed` counts as a completed benefit for the waiting period; the incubator default is 12 months.
 
 ## Open decisions (never assume answers)
-Platform name; launch markets, data protection laws and hosting; pricing; team-member ineligibility policy; first pilot organization and its rules; whether the default waiting period (12 months) differs by sector.
+Platform name; launch markets, data protection laws and hosting; pricing; first pilot organization and its configurable import/ranking rules; detailed permission matrix and person-level visibility; report/export audience, field allowlist and expiry values. Do not use live personal data until jurisdiction, hosting, encryption and retention/deletion safeguards are approved.
 
 ## MVP scope boundaries
 - XLSX and CSV import/export are in scope. PDF export remains an open question and is not MVP scope.
@@ -37,7 +39,7 @@ Platform name; launch markets, data protection laws and hosting; pricing; team-m
 - Project-brief sections 16, 18, and 19 are reference material, not additional MVP feature scope. Risk and security safeguards still apply where relevant.
 
 ## Current status
-The MVP master plan and five phase plans are drafts under owner review in PR #6 on `docs/mvp-plan`. Specifications, UI/UX designs, and implementation are not approved. Preserve PR #6 and its branch unless the owner explicitly directs otherwise.
+The MVP master plan and five phase plans were approved/merged in PR #6. The five Specs and initial MVP policy baseline are being updated on `docs/mvp-specs` in PR #8; final Spec approval is pending. The existing Figma file is approved as a provisional visual baseline, with detailed screen inspection required before each UI slice. Implementation is not authorized until final Spec approval. Do not merge PR #8 without separate owner approval.
 
 ## Development lifecycle
 Follow this sequence for each feature or approved Spec slice:

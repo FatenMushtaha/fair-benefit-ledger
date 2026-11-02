@@ -24,7 +24,7 @@
 - Import accepts XLSX and CSV only. Validate content, structure, required mapped fields and configured size/row limits before row jobs. Invalid rows retain row number, original source, and reason, and cannot enter matching or ledger writes until corrected/revalidated.
 - Preserve raw source values unchanged; deterministic normalized values live separately. A retry processes each `(organization_id, import_batch_id, row_number)` at most once.
 - OpenSpout is selected for streaming XLSX/CSV and bounded memory; confirm installed version/API before implementation. No package is installed during this Specs task.
-- **BLOCKED — OWNER DECISION REQUIRED before processing a pilot batch:** duplicate/error circuit-breaker thresholds and canonical required fields for the first pilot. Recommendation: require owner-configured thresholds and required-field mapping; if absent, keep batch in `NeedsConfiguration` and do not materialize downstream records.
+- **Approved policy:** required fields, accepted formats/date formats, and quality/circuit-breaker thresholds are configurable per organization and pilot; missing configuration leaves the batch in `NeedsConfiguration` and blocks downstream materialization. Concrete first-pilot values must be supplied before that pilot batch is processed.
 
 ## Ordered implementation slices
 
@@ -33,7 +33,7 @@
 - **Goal/scope:** create core tenant entities and portable constraints for people, identifiers/names, programs, participations, rules and cycles.
 - **Dependencies:** SPEC-01 Slices 1–3 approved and implemented; tenant scope/authorization available.
 - **Tables/constraints:** `people(org,id,display_name,normalized_name,date_of_birth,phone,timestamps)`; `person_identifiers(org,person_id,type,normalized_value,authoritative_key?,...)`; `person_names(org,person_id,name,normalized_name,script,source,...)`; `programs(org,name,sector,status,...)`; `participations(org,person_id,program_id,import_row_id?,source_decision_id?,status,start_date,end_date,completion/withdrawal timestamps,...)`; `rule_sets(org,name,purpose,status,current_version_id?)`; immutable `rule_versions(org,rule_set_id,version,config,created_by,created_at)` unique `(org,rule_set_id,version)`; `cycles(org,program_id,rule_version_id,name,status,start_date,available_quantity,automation_mode,...)`. Add parent composite unique `(org,id)`, tenant-safe composite FKs and query indexes. Enforce authoritative identifier uniqueness with nullable `authoritative_key` and unique `(org,authoritative_key)`; populate it only for owner-designated authoritative type/value pairs and leave it null for supporting identifiers. This avoids treating phones/supporting values as unique and is portable to MySQL/MariaDB nullable unique semantics.
-- **Classes/routes/components:** migrations, Eloquent models/relations/casts, organization trait/global scope, factories, `RuleVersion` immutability guard, policies, `PersonStatus`, `ParticipationStatus`, `CycleStatus`, `RuleVersionStatus` enums. No frontend beyond approved Figma.
+- **Classes/routes/components:** migrations, Eloquent models/relations/casts, organization trait/global scope, factories, `RuleVersion` immutability guard, policies, `PersonStatus`, `ParticipationStatus`, `CycleStatus`, `RuleVersionStatus` enums. No frontend beyond existing approved MVP designs.
 - **Behavior:** all inserts derive tenant ID from active context; cycles pin one immutable rule version; used rule versions cannot be edited. Supporting identifiers (for example phone) are not assumed unique.
 - **Authorization/tenant isolation:** all reads and writes are tenant scoped; parent-child links must match `organization_id` at DB and policy levels. Global user/actor references are allowed only with membership authorization.
 - **Edge/error handling:** missing/deleted referenced parent is rejected; attempt to mutate a version used by a cycle is denied; optional nullable source references preserve historical import semantics.
@@ -48,7 +48,7 @@
 - **Goal/scope:** persist private batch metadata, source rows and explicit column mapping separately from normalized values.
 - **Dependencies:** Slice 1; SPEC-01 tenant context. Downstream materialization waits for SPEC-03 identity resolution.
 - **Tables/constraints:** `import_batches(org,purpose,cycle_id?,program_id?,uploader_id,private_path,format,status,counts,cursor,quality_summary,error_summary,...)`, exactly one applicable target; `import_rows(org,import_batch_id,row_number,raw_payload,mapped_payload,cleaned_payload,status,errors,person_id?,...)`, unique `(org,batch,row_number)`; `column_mappings(org,owner_id?,source_headers,canonical_map,locale_hints,approved,...)`; append event types to the tenant-scoped `audit_events` table introduced in SPEC-01—do not create a second audit table. Composite tenant FKs and batch/status indexes.
-- **Classes/routes/components:** `ImportBatch`, `ImportRow`, `ColumnMapping`, `ImportUploadRequest`, upload/mapping policies, private storage adapter, named upload/show/map/confirm routes, Livewire upload/mapping component after approved Figma, audit action.
+- **Classes/routes/components:** `ImportBatch`, `ImportRow`, `ColumnMapping`, `ImportUploadRequest`, upload/mapping policies, private storage adapter, named upload/show/map/confirm routes, Livewire upload/mapping component matching the provisional Figma baseline, audit action.
 - **Behavior:** accept only intended target (cycle or historical program); store original privately with opaque key; store headers and mapping proposal; require explicit user confirmation before row processing. Raw payload is immutable; corrections create a new mapped/cleaned value and audit event.
 - **Authorization/tenant isolation:** uploader must have approved import permission in active org; every row, file and mapping query includes tenant scope; IDs from another tenant return denied/not-found without disclosure.
 - **Edge/error handling:** reject both/neither target, empty file, duplicate header names unless disambiguated, unsafe storage failure, malformed mapping, and failed upload; remove uncommitted partial file and create no processable batch.
@@ -61,7 +61,7 @@
 ### Slice 3 — File preflight and deterministic field mapping/cleaning
 
 - **Goal/scope:** reject unsupported/unsafe inputs before jobs and convert confirmed rows to canonical staged values without changing source data.
-- **Dependencies:** Slice 2; approved canonical fields and pilot quality policy. **BLOCKED — OWNER DECISION REQUIRED** for these business inputs; recommendation is owner-confirmed mapping and thresholds before processability.
+- **Dependencies:** Slice 2; organization-configured canonical fields, source formats/date formats, and pilot quality policy. These concrete values are required before a batch becomes processable; absent configuration produces `NeedsConfiguration` rather than a guessed default.
 - **Tables/constraints:** batch preflight status/format/headers/config snapshot; row mapped and cleaned payload, validation status/errors. No new identity or participation writes here.
 - **Classes/routes/components:** `SpreadsheetPreflight`, OpenSpout reader adapter, `ColumnMappingValidator`, deterministic `FieldNormalizer`, XLSX/CSV content validators, per-format parsing rules, validation message translation keys.
 - **Behavior:** check extension and actual content; enforce configured byte/row limits (limits must be explicitly configured and may not silently be unlimited); reject malformed workbook/CSV, missing required canonical fields, duplicate ambiguous headers, and formula cells in mapped fields without evaluating formulas. Only process confirmed mappings. Normalize whitespace, Arabic/Western digits, dates and identifiers into separate fields; retain raw data unchanged. Ambiguous date/numeric formats are invalid until corrected. Do not use LLM output as accepted mapping or cleaning without explicit human confirmation.
@@ -91,7 +91,7 @@
 ### Slice 5 — Import review and correction handoff
 
 - **Goal/scope:** allow authorized correction/revalidation of invalid staged rows and hand off only valid confirmed rows to matching.
-- **Dependencies:** Slice 4; SPEC-01 approved role matrix; SPEC-03 matching contract. Frontend is blocked pending approved Figma.
+- **Dependencies:** Slice 4; SPEC-01 owner-confirmed role matrix; SPEC-03 matching contract. The provisional Figma baseline is approved; inspect the import review/correction context and verify missing-configuration and failure interactions before coding this UI.
 - **Tables/constraints:** `import_rows` correction version/audit metadata; batch summary; no direct participation creation in this slice.
 - **Classes/routes/components:** correction action/request, import review policy, validation services, review routes/Livewire table and error download after approved design, `ImportAuditRecorder`.
 - **Behavior:** authorized correction updates mapped/cleaned representation while preserving raw source and appending actor/reason/time; rerun validation; only `Valid` rows in an approved batch are exposed to SPEC-03 matching. Invalid rows remain excluded.
@@ -106,10 +106,10 @@
 
 - Pause import workers before rollback. Keep source files and raw rows under owner-approved retention; clean abandoned staging only via tenant-scoped audited procedure. Reversible schema changes may be rolled back only before dependent records exist.
 - PHPUnit feature tests cover upload validation, mapping/correction authorization, two-tenant isolation, storage privacy, validation errors and handoff. Job tests cover chunk/retry/resume. Unit tests cover normalizers and quality threshold boundaries. Use synthetic data only.
-- Manual verification: inspect XLSX/CSV samples with Arabic, English and mixed headers; verify errors and progress against approved Figma when available.
+- Manual verification: inspect synthetic XLSX/CSV samples with Arabic, English and mixed headers; verify errors and progress against the provisional Figma baseline before the relevant UI slice.
 
 ## Open questions / conflicts
 
-- **BLOCKED — OWNER DECISION REQUIRED:** first-pilot required fields, identifier formats, quality/circuit-breaker thresholds, and accepted source date formats. Recommendation: require a person name, allow missing identifiers to proceed only as unresolved review cases, and require per-organization configured thresholds/date formats; absent config blocks processing. This preserves name-based matching but increases manual review.
-- **BLOCKED before live data:** raw upload/identifier encryption, retention and deletion policy. Recommendation: private encrypted storage, minimum retention, and synthetic data only until a jurisdiction-specific policy is approved.
+- **Configuration checkpoint before the pilot batch:** the policy is approved as configurable per organization, but the first pilot's required fields, authoritative identifier types, accepted source formats/date formats, size/row limits, and quality thresholds must be entered and reviewed before processing. Missing required configuration blocks the batch in `NeedsConfiguration`.
+- **BLOCKED before live data:** jurisdiction/hosting, encryption, and raw upload/identifier retention/deletion policy. Use synthetic data until safeguards are approved; do not infer a retention period.
 - **Spec-level implementation check:** confirm installed OpenSpout version and supported XLSX/CSV reader API before coding; no package installation is part of this task.
