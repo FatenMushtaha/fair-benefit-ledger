@@ -22,28 +22,54 @@ Bilingual (Arabic/English) SaaS that helps organizations with limited opportunit
 - Packages (install without asking): livewire/livewire, spatie/laravel-permission, openspout/openspout or maatwebsite/excel (pick one, explain why), league/csv. Anything else: ask first.
 - docs/project-brief.md may be edited when project decisions change.
 
+## Confirmed Plan 01 decisions
+- A user may belong to multiple organizations and must select an active organization.
+- Initial roles are Admin, Reviewer, Data Entry, and Viewer. The permission matrix is not approved; do not infer role capabilities.
+- Figma designs are not yet available. Screens, reusable components, and design tokens must be prepared and approved before frontend implementation. Do not invent UI decisions.
+
 ## Open decisions (never assume answers)
 Platform name; launch markets, data protection laws and hosting; pricing; team-member ineligibility policy; first pilot organization and its rules; whether the default waiting period (12 months) differs by sector.
 
+## MVP scope boundaries
+- XLSX and CSV import/export are in scope. PDF export remains an open question and is not MVP scope.
+- Quotas, billing, cross-organization matching, and unrelated future modules are out of scope.
+- Security, authorization, tenant isolation, auditability, matching safeguards, validation, rollback, and appropriate testing remain mandatory.
+- Project-brief sections 16, 18, and 19 are reference material, not additional MVP feature scope. Risk and security safeguards still apply where relevant.
+
 ## Current status
-Idea/design stage. No planning or implementation has started yet. Wait for explicit instructions before planning or coding.
+The MVP master plan and five phase plans are drafts under owner review in PR #6 on `docs/mvp-plan`. Specifications, UI/UX designs, and implementation are not approved. Preserve PR #6 and its branch unless the owner explicitly directs otherwise.
+
+## Development lifecycle
+Follow this sequence for each feature or approved Spec slice:
+
+1. **Planning:** review `docs/project-brief.md`, `AGENTS.md`, `docs/progress.md`, and applicable skills. Use `intent-interview` to clarify requirements, scope, dependencies, architecture constraints, risks, assumptions, milestones, and open decisions. Create or review the high-level plan/intent. Obtain explicit owner planning approval before specifications.
+2. **Technical Specifications (Specs):** after planning approval, use `spec-writer` to turn the approved intent and phase plan into the implementation-ready Spec. Specs are the detailed technical implementation plans; do not add a mandatory technical-planning phase after Spec approval. Divide work into small, independently testable slices. Each slice defines requirements, approach, schema changes, business logic, files/classes, edge cases, acceptance criteria, security and tenant rules, and tests. Resolve implementation-blocking questions and obtain explicit Spec approval before implementation.
+3. **UI/UX Design:** prepare/review Figma screens, reusable components, and design tokens. Cover Arabic/English, RTL/LTR, responsive layouts, accessibility, validation, loading, empty, error, and success states. Obtain explicit design approval before frontend implementation. For backend-only slices, record why design is not applicable.
+4. **Incremental Implementation + Testing:** implement one approved Spec slice at a time. Follow the approved Spec, design, project conventions, and relevant skills. Write and run tests throughout development. Preserve organization isolation, authorization, auditability, matching safeguards, rollback support, and deterministic domain logic. Do not add unrelated scope or advance to the next slice without explicit owner approval.
+5. **Final QA & Review:** verify every acceptance criterion; run applicable integration, security, authorization, tenant-isolation, bilingual/RTL, and regression tests; run Pint and relevant PHPUnit tests. Review the complete diff, quality, architecture, scope, and documentation; check for secrets and personal data. Fix failures before reporting evidence, risks, and limitations.
+6. **Owner Approval:** request the separate Git/GitHub approvals listed below only after QA. Update `docs/progress.md` at owner-approved milestones.
+7. **Merge:** after PR verification, ask for explicit merge approval. Never merge automatically.
+
+`plan-feature` is optional during initial planning or Spec preparation. It is not a separate required phase after Specs and must not change an approved product scope. If used, carry useful technical detail into the high-level plan or the Spec before Spec approval; do not maintain a second, post-Spec implementation plan.
 
 ## Session start
 - Read docs/progress.md at the start of every session to know what is planned, designed, implemented and approved.
 
 ## Git & GitHub workflow
 - If `gh` is not found on PATH, use the full path: & 'C:\Program Files\GitHub CLI\gh.exe'.
-- Before starting ANY new feature or task, check docs/progress.md and git status. If the previous feature is not marked approved/merged, or there are uncommitted changes, STOP and ask me: "The previous feature is not approved yet. Do you want to approve it, commit, push and open a Pull Request before we start the next one?" Do not start the next feature until I answer. If I say yes, run the "feature approved" steps (including updating docs/progress.md). If I say no, note it in docs/progress.md as "not approved" and then continue.
-- At every gate (finish, push, open PR, merge) YOU ask me a yes/no question; I will only answer yes or no. Never push, open a PR or merge before I answer yes. After opening a PR, run the verification checklist in .agents/skills/feature-done/SKILL.md and report the result BEFORE asking me to merge.
+- Before any new feature or slice, read `docs/progress.md` and check `git status`. If the previous work is unapproved or the tree is dirty, stop and resolve that state with the owner before proceeding; do not overwrite or discard changes. Ask whether the previous implementation/QA milestone is approved, and make clear that this does not authorize any Git action. A yes does not replace the separate commit, push, PR, or merge approvals below.
+- Keep approval gates separate and ask for explicit yes/no approval before each action: (1) commit, (2) push, (3) create/open a PR, and (4) merge. A yes for one action does not authorize another. Never force-push, rewrite history, or merge without the applicable explicit approval.
+- After opening a PR, run the verification checklist in `.agents/skills/feature-done/SKILL.md` and report the result before asking for merge approval.
 - The GitHub repo is PUBLIC. Never commit secrets, .env files, API keys, real personal data, or real applicant/beneficiary data. Use only fake or anonymized data in seeders, factories, tests and docs.
 - Never work directly on `main`.
 - One feature = one branch named `feature/<short-name>`. Design, planning or docs-only work uses `design/<name>` or `docs/<name>`.
 - Commit in small logical steps using Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
 - Before each commit run `vendor/bin/pint --dirty --format agent` and the relevant tests.
-- When I say "feature approved": 1) make sure tests pass, 2) commit everything, 3) push the branch, 4) open a Pull Request with `gh pr create` summarizing what was built, 5) wait for my confirmation, then merge into `main`, 6) update docs/progress.md (status, branch, PR link, date, key decisions), 7) create the next branch from the updated `main`.
-- Never force-push, rewrite history, or merge without my explicit confirmation.
-- When you finish implementing a feature (code written, tests pass, Pint clean), do NOT wait for me to remember. Proactively ask me: "This feature looks done. Do you want to approve it, commit, push and open a Pull Request?" Do not push or merge until I answer yes.
-- Also ask me at the end of any design or planning step: "Do you want me to save this as a commit/PR?"
+- Never work directly on `main`. Use `feature/<short-name>` for implementation and `design/<name>` or `docs/<name>` for design, planning, or documentation work.
+- Before each commit run `vendor/bin/pint --dirty --format agent` and relevant tests when applicable. For docs-only changes, run appropriate diff/consistency checks; do not claim application tests were run if they were not.
+- After each approved milestone, update `docs/progress.md` with accurate status, branch, PR link when available, date, and concise decisions. After merge, record completion and verify the updated main branch.
+- At the end of each planning, Spec, and design phase, present the artifact and ask for that phase's explicit approval. At the end of each implementation slice, report tests/acceptance evidence and wait for explicit approval before advancing to the next slice.
+- Once final QA passes, ask separately for commit approval, then after committing ask for push approval, then after pushing ask for PR creation approval. After PR creation, verify it and ask separately for merge approval. Do not combine these gates into a single approval request.
 
 <laravel-boost-guidelines>
 === foundation rules ===
@@ -211,4 +237,4 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 </laravel-boost-guidelines>
 
 ## Project skills
-Custom skills live in .agents/skills/. Use them in this workflow: intent-interview -> (owner: "intent approved") -> spec-writer -> (owner: "spec approved") -> plan-feature -> (owner: "plan approved") -> implement with tests -> feature-done (when the owner says "feature approved"). Always apply rtl-bilingual-ui for any UI work and tenant-isolation for any model, query, job or export. Intents live in docs/intents/, specs in docs/specs/, plans in docs/plans/. Never skip an approval gate.
+Custom skills live in `.agents/skills/`. Use `intent-interview` during Planning and `spec-writer` during Technical Specifications. `plan-feature` is optional only during initial planning or Spec preparation, as described above; it is not a required post-Spec phase. Specs live in `docs/specs/` and contain the detailed, slice-based implementation plan. Keep intents in `docs/intents/`. Apply `testing-best-practices` when defining test strategy or coverage, and `laravel-best-practices` when writing Laravel backend code. Always apply `rtl-bilingual-ui` for frontend/UI work and `tenant-isolation` for any organization-scoped model, query, job, report, or export. Use `feature-done` for final QA, PR verification, and the separate approval gates. Only the owner can approve an intent/planning baseline, Spec, design, implementation slice, commit, push, PR, or merge. Never skip a gate.
