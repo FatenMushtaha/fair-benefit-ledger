@@ -25,12 +25,12 @@ Bilingual (Arabic/English) SaaS that helps organizations with limited opportunit
 ## Confirmed Plan 01 decisions
 - A user may belong to multiple organizations and must select an active organization.
 - Use first-party session authentication and organization-invited memberships; no public self-service organization creation.
-- Use one role per organization membership: Admin, Reviewer, Data Entry, and Viewer. Admin manages organization settings and membership; Reviewer performs case review; Data Entry handles imports and source corrections; Viewer has restricted read-only access. The detailed permission matrix and person-level visibility require confirmation before authorization implementation; do not infer further capabilities from role names. See [MVP policy baseline](docs/decisions/MVP-POLICY-BASELINE.md).
+- Use one role per organization membership; a user may have different roles across organizations. Follow the owner-approved least-privilege matrix in [SPEC-01](docs/specs/SPEC-01-foundation.md#owner-approved-least-privilege-permission-matrix) exactly; do not infer privileges. Only a distinct Admin may final-approve an acceptance. Enforce permissions server-side and tenant isolation on every operation.
 - The existing Figma file is the provisional visual baseline for the MVP. Derive responsive and Arabic/RTL and English/LTR behavior from its design system; do not require separate frames for every locale or viewport. Inspect affected screens and critical interactions before their UI slices; do not invent product behavior.
 - Approved eligibility baseline: mixed-eligibility teams require human review; `Accepted` and `Active` count for the active-project limit; only `Completed` counts as a completed benefit for the waiting period; the incubator default is 12 months.
 
 ## Open decisions (never assume answers)
-Platform name; launch markets, data protection laws and hosting; pricing; first pilot organization and its configurable import/ranking rules; detailed permission matrix and person-level visibility; report/export audience, field allowlist and expiry values. Do not use live personal data until jurisdiction, hosting, encryption and retention/deletion safeguards are approved.
+Platform name; launch markets, data protection laws and hosting; pricing; first pilot organization and its configurable import/ranking rules; report/export audience, field allowlist and expiry values; role authority for participation status changes/ledger corrections. Do not use live personal data until jurisdiction, hosting, encryption and retention/deletion safeguards are approved.
 
 ## MVP scope boundaries
 - XLSX and CSV import/export are in scope. PDF export remains an open question and is not MVP scope.
@@ -39,7 +39,7 @@ Platform name; launch markets, data protection laws and hosting; pricing; first 
 - Project-brief sections 16, 18, and 19 are reference material, not additional MVP feature scope. Risk and security safeguards still apply where relevant.
 
 ## Current status
-The MVP master plan and five phase plans were approved/merged in PR #6. The five Specs and initial MVP policy baseline are being updated on `docs/mvp-specs` in PR #8; final Spec approval is pending. The existing Figma file is approved as a provisional visual baseline, with detailed screen inspection required before each UI slice. Implementation is not authorized until final Spec approval. Do not merge PR #8 without separate owner approval.
+The MVP master plan and five phase plans were approved/merged in PR #6. The five Specs and MVP policy baseline are on `docs/mvp-specs` in PR #8; the owner-approved authorization matrix is documented in SPEC-01. The existing Figma file is approved as a provisional visual baseline, with detailed screen inspection required before each UI slice. Implementation is not authorized until the next slice is explicitly approved. Follow PR status in `docs/progress.md`.
 
 ## Development lifecycle
 Follow this sequence for each feature or approved Spec slice:

@@ -1,6 +1,6 @@
 # SPEC-04 — Ranking & Review
 
-**Status:** draft — owner approval required
+**Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §§9, 11, 17; [MVP master plan](../plans/MASTER-PLAN.md); [Plan 04](../plans/PLAN-04-ranking-review.md).
 **Scope:** validate a versioned 4–6-criterion weighted rule set, deterministically score eligible applicants, allocate a fixed capacity and stable waitlist, and record authorized reasoned human decisions. No quotas, advanced ranking, or implementation are included.
@@ -22,7 +22,7 @@
 - MVP ranking has 4–6 organization-configured criteria, each with explicit input source, normalization/mapping, weight, and reason label. The configuration must be complete before a run; missing required values block the run. Every acceptance requires a separate human final approval, and the final approver must differ from the person who made the underlying review decision. Reject/exception outcomes require a reason; exceptions do not post to the ledger.
 - Domain scoring/ranking/allocation are plain PHP, deterministic, independent from HTTP/Livewire/AI. Persist pinned rule version, input fingerprint, score breakdown, rank, outcome and reasons for every run.
 - Accepted allocation never exceeds capacity. Remaining eligible applicants have a stable ordered waitlist. Quotas are excluded. No AI output may influence eligibility, score, rank, cutoff or decision.
-- Human review decisions and final approvals require the owner-confirmed permission matrix and are append-only. Reallocation creates a new immutable result run; prior runs and decisions remain available. No automated acceptance is enabled in the MVP.
+- Admin manages ranking configuration and reviews; Reviewer reviews ranking outcomes. Admin and Reviewer may record review decisions under their active-organization permissions. Only an Admin who is a different person from the underlying review decision actor may final-approve an acceptance. Decisions and approvals are append-only. Reallocation creates a new immutable result run; no automated acceptance is enabled.
 
 ## Ordered implementation slices
 
@@ -31,9 +31,9 @@
 - **Goal/scope:** represent owner-defined criteria and validate a complete ranking configuration before execution.
 - **Dependencies:** SPEC-02 rule sets/versions and cycles; SPEC-03 eligibility contract. Criteria, mappings and weights are supplied in the organization/pilot configuration before the first run; no pilot-specific values are shipped as defaults.
 - **Tables/constraints:** immutable `rule_versions` config includes 4–6 criteria with stable keys, input source, owner-defined normalization/mapping, weight, translated label/reason key, tie-break sequence, missing-data policy and automation mode. Cycle pins a version. Schema validation rejects unknown keys and mutation after use.
-- **Classes/routes/components:** plain PHP `RankingRuleSchema`, `RankingRuleValidator`, `RuleVersion` model/immutability guard, `CycleRunStatus`, `CycleResultOutcome` and `DecisionOutcome` enums, capability policy from the owner-confirmed matrix and rule-edit routes/UI matching the provisional Figma baseline.
+- **Classes/routes/components:** plain PHP `RankingRuleSchema`, `RankingRuleValidator`, `RuleVersion` model/immutability guard, `CycleRunStatus`, `CycleResultOutcome` and `DecisionOutcome` enums, Admin capability policy from the owner-approved matrix and rule-edit routes/UI matching the provisional Figma baseline.
 - **Behavior:** accept only a complete configuration with exactly 4–6 unique criteria and valid nonnegative weights summing to 10,000 basis points; each criterion must define a deterministic mapping from source values to integer points 0–10,000. Criteria meaning, source fields, and weights are configured by the organization; incomplete configurations block publication and runs. Every MVP cycle uses `ManualApprovalRequired`; no automated acceptance mode is available. Rule version increments on every approved configuration change; used versions are immutable.
-- **Authorization/tenant isolation:** rule changes require owner-approved organization capability; all rule-set/version queries are tenant-scoped and composite FKs enforce same organization.
+- **Authorization/tenant isolation:** rule configuration and cycle management require Admin role in the active organization; all rule-set/version queries are tenant-scoped and composite FKs enforce same organization.
 - **Edge/error handling:** absent criterion source, invalid mapping, duplicate key, missing-data policy or incomplete owner configuration blocks publication/run with field-level errors; no implicit criterion/weight default.
 - **Acceptance/tests:**
   - **AC-04.1** Given a rule configuration with fewer than 4 or more than 6 criteria, invalid weights, duplicated keys or missing mappings, when validation runs, then it is rejected with field-level errors; unit tests cover each invalid boundary.
@@ -68,25 +68,25 @@
 - **Edge/error handling:** negative/null capacity is rejected; no eligible rows returns empty outcomes; duplicate applicant IDs are rejected before ordering.
 - **Acceptance/tests:**
   - **AC-04.8** Given valid scores, tie policy and capacity, when allocation runs, then accepted count is at most capacity and remaining eligible applicants are ranked on the waitlist; tests cover zero, exact and excess capacity.
-  - **AC-04.9** Given equal scores, when tie-breakers are applied, then result order is stable and every comparison value is persisted; tests cover equal values and final fallback after approval.
+  - **AC-04.9** Given equal scores, when tie-breakers are applied, then result order is stable and every comparison value is persisted; tests cover equal values and the final immutable-ID fallback.
   - **AC-04.10** Given equal scores and registration times, when allocation is requested, then immutable applicant ID completes the stable order; service tests verify the final fallback.
 - **Definition of Done:** allocation is deterministic and never over capacity; no quota logic exists; prior run results remain immutable.
 
 ### Slice 4 — Review queue and reasoned decisions
 
 - **Goal/scope:** show reviewable results and allow authorized approve, reject or exception actions with reasons.
-- **Dependencies:** Slice 3; SPEC-01 owner-confirmed role matrix and person-level visibility. The provisional Figma baseline is approved; inspect the review and independent-approval contexts before coding.
+- **Dependencies:** Slice 3; SPEC-01 owner-approved role matrix. The provisional Figma baseline is approved; inspect the review and independent-approval contexts before coding.
 - **Tables/constraints:** append-only `decisions(org,cycle_id,cycle_run_id,cycle_result_id,outcome,reason?,actor_id,decided_at,supersedes_id?)`; append-only `final_approvals(org,decision_id,final_approver_id,approved_at)` with one final approval per accepted decision and tenant-safe composite FKs; append-only `audit_events`. Require a non-empty reason for `Rejected` and `Exception`, validate state transitions, and enforce `final_approver_id != decisions.actor_id` in the service and database-compatible validation.
 - **Classes/routes/components:** `CycleReviewPolicy`, `RecordCycleDecision` action, decision request/validator, named result list/detail/decision routes, Livewire review components matching the provisional Figma baseline, translated reason labels.
-- **Behavior:** display rank, criterion breakdown, eligibility/match evidence and reason snapshot; allow only matrix-approved transitions. Review decisions are appended, never overwritten. A human `Accepted` review decision is a recommendation only; it cannot be posted until a separately authorized person with the confirmed final-approval capability approves it, using a different user ID from the decision actor. Rejection and exception require reasons; an exception does not become an accepted outcome or post to the ledger. No automated acceptance is allowed.
-- **Authorization/tenant isolation:** membership + active org + approved capability required for list/detail/mutation; policy rechecks all IDs and tenant composite relationships; unauthorized users cannot access reason/person data.
-- **Edge/error handling:** stale result run requires refresh; missing reason/invalid transition/unknown outcome is rejected; unavailable reviewer authority fails closed; concurrent decisions use optimistic version check and preserve both attempted audit context and winning decision.
+- **Behavior:** display rank, criterion breakdown, eligibility/match evidence and reason snapshot; allow only matrix-approved transitions. Admin and Reviewer may record review decisions. Review decisions are appended, never overwritten. A human `Accepted` review decision is a recommendation only; it cannot be posted until an authorized Admin separately final-approves it using a different user ID from the decision actor. Admin may not approve an acceptance they reviewed. Rejection and exception require reasons; an exception does not become an accepted outcome or post to the ledger. No automated acceptance is allowed.
+- **Authorization/tenant isolation:** Admin and Reviewer may access the review queue and only the case evidence needed for their review actions; only Admin may final-approve and only for another user's review decision. Membership + active org + role capability is checked server-side for every list/detail/mutation; policy rechecks all IDs and tenant composite relationships; unauthorized users cannot access reason/person data.
+- **Edge/error handling:** stale result run requires refresh; missing reason/invalid transition/unknown outcome is rejected; unavailable Admin or Reviewer authority fails closed; self-approval and non-Admin final approval are rejected; concurrent decisions use optimistic version check and preserve both attempted audit context and winning decision.
 - **Acceptance/tests:**
-  - **AC-04.11** Given an authorized Reviewer and current result, when they record an allowed accept/reject/exception decision, then one new decision and audit event are appended; reject/exception require a non-empty reason; feature tests cover each allowed transition.
-  - **AC-04.12** Given an accepted review decision, when a different authorized person with the confirmed final-approval capability approves it, then a separate final-approval record is appended; the decision actor cannot approve their own decision; feature tests cover distinct-actor and authorization boundaries.
+  - **AC-04.11** Given an authorized Admin or Reviewer and current result, when they record an allowed accept/reject/exception decision, then one new decision and audit event are appended; reject/exception require a non-empty reason; feature tests cover each allowed transition.
+  - **AC-04.12** Given an accepted review decision, when a different authorized Admin approves it, then a separate final-approval record is appended; the decision actor cannot approve their own decision; feature tests cover distinct-actor, role and authorization boundaries.
   - **AC-04.13** Given a rejected/exception decision with no reason, an unauthorized role, same-actor approval, stale result or foreign ID, when a decision/approval is attempted, then it is denied without altering result or decision history; policy/feature tests cover all cases.
   - **AC-04.14** Given the provisional Figma baseline and either locale, when the review screen renders, then it shows translated reasons/evidence with correct direction and no raw keys; render tests cover `ar` and `en`.
-- **Definition of Done:** owner-confirmed matrix and relevant screen context are reviewed; all review decisions and final approvals are distinct-actor, reasoned where required, tenant-authorized and append-only; no automated acceptance is enabled.
+- **Definition of Done:** approved matrix and relevant screen context are followed; only Admin/Reviewer roles can perform review actions, only a distinct Admin can final-approve; all decisions are reasoned where required, tenant-authorized and append-only; no automated acceptance is enabled.
 
 ### Slice 5 — Re-run and allocation history
 
@@ -111,6 +111,6 @@
 ## Open questions / conflicts
 
 - **Configuration checkpoint before the first ranking run:** each pilot must provide its 4–6 criteria, source fields, mappings, weights and missing-data policy. Incomplete configuration blocks the run; the Spec defines no sample criteria or weights.
-- **BLOCKED before SPEC-04 Slice 4 authorization implementation:** confirm the detailed SPEC-01 permission matrix and person-level visibility. The distinct-actor final-approval rule and reasoned rejection/exception policy are approved.
+- **Permission baseline:** only Admin and Reviewer perform ranking review; only a different Admin final-approves an acceptance. Report visibility and personal-data fields remain bounded by the approved allowlist and configured audience.
 - **No quotas:** capacity is a single cycle quantity. Quota allocation, advanced ranking and what-if simulation are not in this Spec.
 - **Technical refinement:** `cycle_runs` and run-keyed score/result snapshots make plan-required provenance and non-destructive reruns explicit; this adds no product feature.

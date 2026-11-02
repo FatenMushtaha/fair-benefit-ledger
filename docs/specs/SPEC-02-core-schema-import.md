@@ -1,6 +1,6 @@
 # SPEC-02 — Core Schema & Import
 
-**Status:** draft — owner approval required
+**Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §17, [MVP master plan](../plans/MASTER-PLAN.md), and [Plan 02](../plans/PLAN-02-core-schema-import.md); approved intent-baseline alternative in [spec-writer](../../.agents/skills/spec-writer/SKILL.md).
 **Scope:** tenant-safe core ledger/cycle/rules/audit schema and private, validated XLSX/CSV staging, mapping, normalization, chunk processing and quality summaries. No application changes are authorized by this draft.
@@ -50,7 +50,7 @@
 - **Tables/constraints:** `import_batches(org,purpose,cycle_id?,program_id?,uploader_id,private_path,format,status,counts,cursor,quality_summary,error_summary,...)`, exactly one applicable target; `import_rows(org,import_batch_id,row_number,raw_payload,mapped_payload,cleaned_payload,status,errors,person_id?,...)`, unique `(org,batch,row_number)`; `column_mappings(org,owner_id?,source_headers,canonical_map,locale_hints,approved,...)`; append event types to the tenant-scoped `audit_events` table introduced in SPEC-01—do not create a second audit table. Composite tenant FKs and batch/status indexes.
 - **Classes/routes/components:** `ImportBatch`, `ImportRow`, `ColumnMapping`, `ImportUploadRequest`, upload/mapping policies, private storage adapter, named upload/show/map/confirm routes, Livewire upload/mapping component matching the provisional Figma baseline, audit action.
 - **Behavior:** accept only intended target (cycle or historical program); store original privately with opaque key; store headers and mapping proposal; require explicit user confirmation before row processing. Raw payload is immutable; corrections create a new mapped/cleaned value and audit event.
-- **Authorization/tenant isolation:** uploader must have approved import permission in active org; every row, file and mapping query includes tenant scope; IDs from another tenant return denied/not-found without disclosure.
+- **Authorization/tenant isolation:** only Admin and Data Entry may upload/manage imports, and only for the active organization; raw source-file access is limited to authorized import operations. Every row, file and mapping query includes tenant scope; foreign IDs return denied/not-found without disclosure.
 - **Edge/error handling:** reject both/neither target, empty file, duplicate header names unless disambiguated, unsafe storage failure, malformed mapping, and failed upload; remove uncommitted partial file and create no processable batch.
 - **Acceptance/tests:**
   - **AC-02.4** Given a valid tenant-authorized upload, when staged, then batch and source rows belong to that organization and original values are preserved; feature tests verify private storage and raw immutability.
@@ -91,11 +91,11 @@
 ### Slice 5 — Import review and correction handoff
 
 - **Goal/scope:** allow authorized correction/revalidation of invalid staged rows and hand off only valid confirmed rows to matching.
-- **Dependencies:** Slice 4; SPEC-01 owner-confirmed role matrix; SPEC-03 matching contract. The provisional Figma baseline is approved; inspect the import review/correction context and verify missing-configuration and failure interactions before coding this UI.
+- **Dependencies:** Slice 4; SPEC-01 approved role matrix; SPEC-03 matching contract. The provisional Figma baseline is approved; inspect the import review/correction context and verify missing-configuration and failure interactions before coding this UI.
 - **Tables/constraints:** `import_rows` correction version/audit metadata; batch summary; no direct participation creation in this slice.
 - **Classes/routes/components:** correction action/request, import review policy, validation services, review routes/Livewire table and error download after approved design, `ImportAuditRecorder`.
 - **Behavior:** authorized correction updates mapped/cleaned representation while preserving raw source and appending actor/reason/time; rerun validation; only `Valid` rows in an approved batch are exposed to SPEC-03 matching. Invalid rows remain excluded.
-- **Authorization/tenant isolation:** Data Entry capability is not assumed until matrix approval; all correction/list/download actions enforce active organization and approved capability.
+- **Authorization/tenant isolation:** Admin and Data Entry may correct source rows and access only the operational records needed for those tasks; all correction/list/download actions enforce active organization and approved capability. Reviewer and Viewer have no raw import-file access.
 - **Edge/error handling:** malformed correction leaves previous version intact; stale concurrent corrections fail with a conflict; invalid rows cannot be force-marked valid without validation.
 - **Acceptance/tests:**
   - **AC-02.13** Given an invalid row, when a valid correction is submitted by an authorized user, then raw data remains and the new normalized value is revalidated and audited; feature tests cover success and invalid correction.

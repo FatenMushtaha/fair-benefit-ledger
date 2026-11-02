@@ -1,15 +1,15 @@
 # MVP Policy Baseline
 
 **Recorded:** 2026-11-02
-**Status:** Initial owner-approved policy baseline; detailed authorization matrix and final Spec approval remain pending.
+**Status:** Owner-approved MVP policy, authorization baseline, and five Specs; implementation slice approval remains separate.
 **Scope:** Existing MVP Specs and the approved end-to-end distribution workflow only.
 
-This record consolidates the owner's approval of the ten MVP policy recommendations and two clarifications. It does not approve the five Specs for implementation. The Specs remain drafts until the owner gives explicit final Spec approval.
+This record consolidates the owner's approval of the MVP policy recommendations and clarifications, including the final permission matrix. The owner has approved all five Specs and authorized their merge after the stated verification gates. Implementation remains prohibited until a specific slice is separately approved.
 
 ## Approved policy
 
 - **Authentication and membership:** use first-party session authentication and organization-invited memberships; no public self-service organization creation. A user may belong to multiple organizations and selects a validated active organization.
-- **Roles:** use one role per organization membership: Admin, Reviewer, Data Entry, or Viewer. Admin manages organization settings and membership; Reviewer performs case review; Data Entry handles imports and source corrections; Viewer has restricted read-only access. Do not infer other privileges from role names. A detailed least-privilege matrix is proposed in [SPEC-01](../specs/SPEC-01-foundation.md) and must be confirmed before authorization implementation.
+- **Roles:** one role per organization membership; a user may have different roles across organizations. The [owner-approved least-privilege matrix](../specs/SPEC-01-foundation.md#owner-approved-least-privilege-permission-matrix) is the sole authorization source. Admin manages organization settings/membership, programs/cycles, imports, match/ranking reviews, reports, personal-data exports, and audit logs. Reviewer reviews identity matches, eligibility, rankings, rejections, and exceptions. Data Entry uploads/maps/validates/corrects source data and sees only necessary operational records. Viewer reads only approved restricted reports/lists, with no raw files or unrestricted personal data. Only a distinct authorized Admin may final-approve an acceptance. Every operation enforces server-side permission checks and tenant isolation.
 - **Matching:** only exact matches on organization-designated authoritative identifiers may auto-link. Name candidates always require human review. Missing identifier configuration blocks automatic linking.
 - **Eligibility:** mixed-eligibility teams require human review. `Accepted` and `Active` count for the one-active-project limit. Only `Completed` participation counts as a completed benefit for waiting-period eligibility. Withdrawals and noncompletion remain visible but do not count as completed benefits. Use the 12-month incubator waiting period; other sector periods require explicit configuration.
 - **Ranking:** configure criteria and weights per organization/pilot; block incomplete configurations. Order equal scores by registration time ascending, then immutable applicant ID ascending. Require human final approval for every acceptance.
@@ -21,7 +21,7 @@ This record consolidates the owner's approval of the ten MVP policy recommendati
 
 ## Remaining checkpoints
 
-- Confirm or revise the detailed SPEC-01 permission matrix, including person-level visibility and who may read reports, create/download exports, and view audit history. This is required before SPEC-01 Slice 3 and authorization-dependent actions.
+- Resolve which approved role may change participation status for withdrawal or ledger correction before SPEC-05 Slice 2; the approved matrix does not assign this capability.
 - Enter and review the first pilot's required import fields, authoritative identifier types, source/date formats, size/row limits, and quality thresholds before processing a batch. Missing values block the batch in `NeedsConfiguration`.
 - Enter and review the pilot's 4–6 ranking criteria, source mappings, weights, and missing-data policy before its first ranking run. Missing required inputs block the run.
 - Approve report audiences/field allowlists and configure export expiry before generating reports or exports.
@@ -29,4 +29,4 @@ This record consolidates the owner's approval of the ten MVP policy recommendati
 
 ## Scope and approval gates
 
-This policy baseline adds no MVP features. The five Specs remain drafts on `docs/mvp-specs` in PR #8. Do not implement until the owner separately approves the final Spec set; do not enforce the proposed permission matrix until its detailed confirmation is recorded.
+This policy baseline adds no MVP features. Do not implement until the owner-approved Specs are merged and the next slice is explicitly authorized. The approved matrix is fully documented in SPEC-01; unresolved per-pilot settings and live-data safeguards remain gate conditions in the relevant Specs.

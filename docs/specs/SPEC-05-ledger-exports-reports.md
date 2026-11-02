@@ -1,6 +1,6 @@
 # SPEC-05 — Ledger, Exports & Reports
 
-**Status:** draft — owner approval required
+**Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §§4, 6–8, 12, 17; [MVP master plan](../plans/MASTER-PLAN.md); [Plan 05](../plans/PLAN-05-ledger-export-reports.md).
 **Scope:** post valid approved acceptances to the cumulative organization ledger, preserve withdrawal/correction history, replace reopened seats through deterministic allocation, and provide authorized XLSX/CSV lists and essential reports. No PDF or future modules.
@@ -32,11 +32,11 @@
 ### Slice 1 — Idempotent ledger posting after approval
 
 - **Goal/scope:** create cumulative participation records from valid final approvals only.
-- **Dependencies:** SPEC-01 owner-confirmed auth/permission matrix; SPEC-02 core schema; SPEC-03 eligibility; SPEC-04 completed result, review decision and distinct-actor final approval. Role authority remains blocked until matrix confirmation.
+- **Dependencies:** SPEC-01 approved authorization matrix; SPEC-02 core schema; SPEC-03 eligibility; SPEC-04 completed result, review decision and distinct-actor Admin final approval.
 - **Tables/constraints:** `participations(org,person_id,program_id,source_import_row_id?,source_decision_id,source_final_approval_id,status,start_date,end_date,completed_at,withdrawn_at,created_at,...)`; required unique `(org,source_decision_id)` and `(org,source_final_approval_id)` for cycle posting, with composite FKs to same-tenant person/program/decision/final approval/import row, indexes `(org,person_id,status)`, `(org,person_id,end_date)`, `(org,program_id,status)`. Append-only `audit_events` records posting actor/time/reason/correlation.
 - **Classes/routes/components:** `PostApprovedParticipation` transactional action/job; `Participation` model/status enum; `LedgerPostingPolicy`; `RecordAuditEvent`; posting trigger/action from approved decision workflow.
 - **Behavior:** accept only a current eligible `Accepted` review decision with a valid independent final-approval record, same tenant/cycle/program/person, and `final_approver_id` different from the review decision actor. Insert once using source-decision uniqueness/idempotency key and initially record the participation as `Accepted`; later lifecycle status changes preserve history and are audited. `Accepted`/`Active` count toward the one-active-project limit, but only `Completed` counts as a completed benefit for waiting-period eligibility. `Withdrawn` and `NotCompleted` remain visible and never count as completed benefits. Waiting-list, rejected, unresolved and exception outcomes do not post.
-- **Authorization/tenant isolation:** service validates active org and decision actor authority; worker payload includes org/cycle/decision IDs and re-establishes context; all links must match org.
+- **Authorization/tenant isolation:** service validates active organization, review decision authority and independent Admin final approval; worker payload includes org/cycle/decision IDs and re-establishes context; all links must match org.
 - **Edge/error handling:** duplicate execution returns the already-created participation; conflicting second person/program for the same decision is a hard integrity error; missing approval, person resolution, dates or tenant match prevents posting; audit failure rolls back posting transaction.
 - **Acceptance/tests:**
   - **AC-05.1** Given an eligible accepted review decision and a valid final approval by a different authorized person, when posting runs, then exactly one tenant-owned `Accepted` participation is created and an audit event records the source decision, final approval, actor and time; feature tests cover the two-person approval gate and atomicity.
@@ -47,11 +47,11 @@
 ### Slice 2 — Withdrawal, correction and waitlist replacement
 
 - **Goal/scope:** preserve history when an accepted participant withdraws or a ledger posting needs correction; release capacity and run a new deterministic allocation.
-- **Dependencies:** Slice 1; SPEC-04 run/result history and approved waitlist order; owner-approved authority for withdrawal/correction actions.
+- **Dependencies:** Slice 1; SPEC-04 run/result history and approved waitlist order. The role allowed to change participation status for withdrawal or ledger correction is not assigned by the approved matrix and must be resolved before this slice.
 - **Tables/constraints:** retain original `participations` and decisions; add append-only `participation_events` or use append-only `audit_events` with typed before/after payload and source IDs; source posting remains immutable. Link replacement decision/posting to new cycle result/run.
 - **Classes/routes/components:** `WithdrawParticipant` action, `CompensateParticipation` action, `ReallocateCycle` workflow/job, withdrawal policy, audit recorder, withdrawal/replacement screen actions matching the provisional Figma baseline.
 - **Behavior:** an authorized withdrawal appends an event and changes current participation status to `Withdrawn` without deleting prior data; `Withdrawn` and `NotCompleted` never count as completed benefits. Release one cycle seat; invoke a new SPEC-04 run against the remaining eligible waitlist; only the next accepted review decision with a new independent final approval may post replacement. Preserve original and replacement provenance. No automated replacement approval is permitted.
-- **Authorization/tenant isolation:** active organization, approved role and reason required; reallocation job carries explicit tenant/cycle IDs; no other tenant's waitlist can be read or moved.
+- **Authorization/tenant isolation:** active organization, the owner-approved role for participation status changes, and reason are required; reallocation job carries explicit tenant/cycle IDs; no other tenant's waitlist can be read or moved.
 - **Edge/error handling:** repeated withdrawal is idempotent; already completed or non-withdrawable statuses are rejected according to approved lifecycle mapping; no candidate on waitlist leaves capacity vacant and records reason; concurrent seat release is serialized/optimistically locked; failed rerun leaves prior run current.
 - **Acceptance/tests:**
   - **AC-05.4** Given a valid accepted participant withdrawal, when recorded, then history remains, capacity reopens, and the next eligible waiting applicant is considered by a new deterministic run; workflow tests cover seat movement.
@@ -62,26 +62,26 @@
 ### Slice 3 — Tenant-scoped report queries and essential lists
 
 - **Goal/scope:** provide testable cycle lists and summaries derived from current decisions, participation history and completed-benefit ledger state.
-- **Dependencies:** SPEC-01 owner-confirmed authorization; SPEC-02/03/04 data contracts; approved report audience, filters and field allowlist before person-level output is exposed.
+- **Dependencies:** SPEC-01 approved authorization; SPEC-02/03/04 data contracts; approved report audience, filters and field allowlist before person-level output is exposed.
 - **Tables/constraints:** scoped queries over `cycles`, `cycle_runs`, `cycle_results`, `decisions`, `participations`, `programs`, `people`, `audit_events`; every raw join/aggregate includes explicit organization predicate. No cross-org summary.
 - **Classes/routes/components:** `CycleReportQuery`, `LedgerCoverageQuery`, `PriorBenefitSummaryQuery`, report DTOs, report policy, named list/report routes and Livewire list/filter views matching the provisional Figma baseline.
 - **Behavior:** MVP reports include accepted/approved list, ordered waiting list, exceptions/reasons list, cycle outcome totals, and prior-benefit/coverage summary derived from scoped ledger. Participation history shows current statuses, while completed-benefit totals include only `Completed` records; `Withdrawn`/`NotCompleted` remain visible but are excluded from completed-benefit totals. Every report states active filters and generation timestamp; only fields allowed by the owner-approved field allowlist are returned.
-- **Authorization/tenant isolation:** report/list permission checked on every request; service queries scope all joined tables; guessed cycle IDs and filter IDs from another org deny.
+- **Authorization/tenant isolation:** Admin may access organization reports; Viewer may access only approved restricted reports/lists with allowlisted fields. Reviewers see only case information needed to review and Data Entry only import/source information needed for operational work; neither receives general report/export access from that role. Check every request server-side and scope all joins; guessed cycle/filter IDs from another org deny.
 - **Edge/error handling:** empty cycles produce zero-count/empty results; stale current run is clearly unavailable; invalid filters reject; missing data is labeled unverified rather than omitted as zero; query failures reveal no SQL/private data.
 - **Acceptance/tests:**
   - **AC-05.7** Given a known synthetic ledger and current cycle, when each report query runs, then counts/lists match source records and filters are included; feature tests verify fixtures and calculation.
   - **AC-05.8** Given tenant A requests report data for tenant B, when any route/query executes, then no foreign rows/counts are returned; feature tests cover direct and aggregate joins.
-  - **AC-05.9** Given a viewer/reviewer role, when report fields are requested, then only owner-approved fields/actions are exposed; policy tests use the approved matrix.
+- **AC-05.9** Given a Viewer, Reviewer, or Data Entry membership, when report/list fields are requested, then only the role's approved restricted visibility is exposed; Viewer cannot access raw files or unrestricted personal data, and only Admin can create/download exports; policy tests cover each role and tenant.
 - **Definition of Done:** report values reconcile with ledger fixtures; all joins are tenant constrained; audience/fields and UI designs are approved before implementation.
 
 ### Slice 4 — Private XLSX/CSV export jobs and safe downloads
 
 - **Goal/scope:** generate authorized accepted, waitlist, exception and essential report exports in XLSX or CSV.
-- **Dependencies:** Slice 3; SPEC-02 OpenSpout selection/version validation; SPEC-01 owner-confirmed role matrix; organization-approved report audience/field allowlist and configured export expiry. Exports remain unavailable where those values are absent.
+- **Dependencies:** Slice 3; SPEC-02 OpenSpout selection/version validation; SPEC-01 approved role matrix; organization-approved report audience/field allowlist and configured export expiry. Only Admin may create/download exports; exports remain unavailable where allowlist or expiry is absent.
 - **Tables/constraints:** `exports(org,cycle_id,requester_id,format,locale,status,filters,cycle_run_id,source_decision_fingerprint,private_file_path,expires_at,created_at,...)`; allowed `ExportFormat` enum only XLSX/CSV and `ExportStatus` enum; composite FK requires the selected run to belong to that organization and cycle; indexes `(org,cycle,status)` and `(org,requester,status)`; opaque private file key. Export job records row count and failure reason without storing unnecessary copies. Fingerprint captures immutable decision IDs/outcomes used to create the artifact.
 - **Classes/routes/components:** `CreateExport` action, `BuildXlsxExport`/`BuildCsvExport` jobs using approved package, `ExportPolicy`, private storage adapter, safe serializer, named request/status/download routes, export request/status component matching the provisional Figma baseline, translated headings.
 - **Behavior:** user selects only approved report type, filters, locale and XLSX/CSV format; request captures current run ID, immutable decision fingerprint and authorized field list; job carries organization ID and rebuilds scope. XLSX user-provided strings are emitted as explicit text cells. CSV text values whose first non-whitespace/control character is `=`, `+`, `-`, or `@`, or begin with tab/CR, are prefixed with apostrophe before CSV quoting; validated server-generated numeric columns remain numeric. Exports use the selected Arabic/English headings and direction-aware column order. Recompute source run and decision fingerprint at download; mark artifact stale and deny download if either changed. Do not generate an artifact without an approved field allowlist and configured expiry.
-- **Authorization/tenant isolation:** authorize creation and each download; file stored outside public webroot under unpredictable tenant-owned path; guessed export ID, path, stale, failed or expired artifact denies without path disclosure; join predicates explicitly scope tenant.
+- **Authorization/tenant isolation:** only an Admin in the active organization may create/download exports, and each operation is reauthorized server-side; file stored outside public webroot under unpredictable tenant-owned path; guessed export ID, path, stale, failed or expired artifact denies without path disclosure; join predicates explicitly scope tenant.
 - **Edge/error handling:** no export for unsupported format (including PDF), unavailable report, missing retention/field policy or stale source; chunk/stream rows with bounded memory; retry is idempotent per export request; partial file is deleted only under approved retention rules and job failure is auditable.
 - **Acceptance/tests:**
   - **AC-05.10** Given an authorized export request in XLSX or CSV, when generated, then rows/headings/locale match authorized filters and the captured run; export tests cover content and Arabic/English.
@@ -97,7 +97,7 @@
 - **Tables/constraints:** `audit_events(org,actor_id,event_type,subject_type,subject_id,reason,payload,occurred_at,correlation_id)` append-only; indexes `(org,occurred_at)` and `(org,subject_type,subject_id)`. Append-only `participation_events` if separate from audit is not required; use one canonical event path.
 - **Classes/routes/components:** audit writer interface/action, audit read policy/query, ledger reconciliation command/service invoked by an authorized operator, audit view route matching the provisional Figma baseline.
 - **Behavior:** record posting, correction, withdrawal, replacement, export creation/download and failure events with actor/system identity, reason, timestamp and correlation; application exposes no update/delete path and runtime database credentials have no audit update/delete privilege (migrations use separate credentials). Reconciliation compares current participation postings with source decisions and reports discrepancies; it never auto-repairs or overwrites data.
-- **Authorization/tenant isolation:** audit list is tenant-scoped and restricted to owner-approved role; system jobs carry org ID; DB/app permissions prevent update/delete.
+- **Authorization/tenant isolation:** only an Admin may read audit logs, within the active organization; system jobs carry org ID; DB/app permissions prevent update/delete.
 - **Edge/error handling:** failed audit write aborts the related financial/ledger mutation; missing actor is explicit system actor, not null without explanation; discrepancy output is read-only and safe.
 - **Acceptance/tests:**
   - **AC-05.14** Given posting, withdrawal, correction or export lifecycle actions, when performed, then append-only events contain actor, timestamp, reason/event type and tenant; feature tests assert required fields.
@@ -113,7 +113,7 @@
 
 ## Open questions / conflicts
 
-- **BLOCKED before SPEC-05 Slices 1–4 authorization-dependent actions:** confirm the SPEC-01 role matrix and exact person-level visibility. The policy that exceptions do not post is approved.
+- **Before SPEC-05 Slice 2:** resolve which approved role may change participation status for withdrawal/ledger correction; this capability is not assigned by the approved matrix. The policy that exceptions do not post is approved.
 - **Configuration checkpoint before report/export generation:** approve each report audience and field allowlist and configure an expiry value. The export request selects its locale; no default retention period is assumed.
 - **BLOCKED before live personal data:** approve jurisdiction/hosting, encryption and retention/deletion safeguards. Use synthetic data only until then.
 - **No PDF:** PDF, quotas, billing, cross-organization matching and public registries are explicitly excluded.

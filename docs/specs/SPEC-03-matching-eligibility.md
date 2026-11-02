@@ -1,6 +1,6 @@
 # SPEC-03 — Matching & Eligibility
 
-**Status:** draft — owner approval required
+**Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §§7–10, 17; [MVP master plan](../plans/MASTER-PLAN.md); [Plan 03](../plans/PLAN-03-matching-eligibility.md).
 **Scope:** organization-local identity candidates with explainable confidence and human review, then deterministic eligibility evaluation for each cycle applicant. No cross-organization lookup or automatic uncertain identity merge.
@@ -45,11 +45,11 @@
 ### Slice 2 — Confidence, match resolution and human review
 
 - **Goal/scope:** classify match candidates and record safe auto-link or human-reviewed outcomes.
-- **Dependencies:** Slice 1; SPEC-01 owner-confirmed authorization matrix. The match policy is approved; authoritative identifier types and their normalized values are configured by each organization before pilot processing.
+- **Dependencies:** Slice 1; SPEC-01 approved authorization matrix. The match policy is approved; authoritative identifier types and their normalized values are configured by each organization before pilot processing.
 - **Tables/constraints:** `match_reviews(org,import_row_id,candidate_id?,reviewer_id,outcome,reason,reviewed_at)` with tenant-safe FKs and indexes `(org,import_row_id)` and `(org,reviewer_id,reviewed_at)`; append-only review history. Candidate rows retain evidence, method, band, match-policy version and normalizer version; numeric similarity scores are not part of the MVP decision contract.
 - **Classes/routes/components:** `MatchConfidenceClassifier`, `ResolveMatch` action, `RecordMatchReview` action, match policy, named review/resolve routes, `MatchReview` Livewire screen matching the provisional Figma baseline, translated reason keys.
 - **Behavior:** classify an exact match on a configured authoritative identifier as `High` and auto-link only that case. Name-blocking candidates are `Medium` and require an authorized human decision; no candidate is `Low` and remains unlinked. If the authoritative identifier configuration is absent, no row auto-links. Do not compute or present a numeric similarity score in the MVP; show the underlying normalized evidence instead. Human choice must select an existing same-tenant candidate or explicitly create a separate identity; no merge/delete of prior person rows. Corrections append superseding history and update the current link through an audited action.
-- **Authorization/tenant isolation:** reviewer actions require active-organization membership and owner-approved capability; guessed cross-tenant candidate/import IDs deny. All candidate joins include organization ID.
+- **Authorization/tenant isolation:** Admin and Reviewer may review identity matches and eligibility cases, with only the evidence needed for those decisions; source-data corrections remain limited to Admin and Data Entry. Every operation requires active-organization membership and an approved capability; guessed cross-tenant candidate/import IDs deny. All candidate joins include organization ID.
 - **Edge/error handling:** conflicting IDs, no candidates, stale concurrent review, duplicate candidate, invalid outcome or missing reason are rejected/flagged without mutating identity; uncertain case stays unresolved.
 - **Acceptance/tests:**
   - **AC-03.4** Given the organization has not configured authoritative identifier types, when resolution runs, then no candidate auto-links and name candidates remain review-required; service tests verify fail-closed behavior.
@@ -76,7 +76,7 @@
 ### Slice 4 — Eligibility review queue and corrections
 
 - **Goal/scope:** expose unresolved matches and eligibility/team flags to authorized humans, then rerun only affected evaluation under a pinned version.
-- **Dependencies:** Slices 2–3 and SPEC-01 owner-confirmed role matrix. The provisional Figma baseline is approved; inspect the identity comparison and eligibility review contexts before coding and verify the mixed-team/reasoned-review interactions.
+- **Dependencies:** Slices 2–3 and SPEC-01 approved role matrix. The provisional Figma baseline is approved; inspect the identity comparison and eligibility review contexts before coding and verify the mixed-team/reasoned-review interactions.
 - **Tables/constraints:** append-only match reviews, audit events, and evaluation snapshots; current cycle applicant state references latest evaluation while prior runs remain immutable.
 - **Classes/routes/components:** review query service, eligibility policy, named queue/detail/review routes, Livewire case table/detail matching the provisional Figma baseline, audited correction action.
 - **Behavior:** queue sorts/paginates by explicit deterministic keys; shows evidence, status and reasons; human can record the allowed reviewed outcome only after owner policy is approved. Changing identity/data triggers a new evaluation snapshot; it never silently edits old result or ledger.
@@ -96,6 +96,6 @@
 ## Open questions / conflicts
 
 - **Configuration checkpoint before pilot matching/eligibility:** each organization must designate authoritative identifier types and provide the sector's configured waiting period where the incubator default does not apply. Missing configuration blocks automatic matching/evaluation; it does not change the approved policy that name candidates require human review and only `Completed` counts toward the waiting period.
-- **BLOCKED before authorization-dependent review UI/actions:** confirm the SPEC-01 permission matrix and person-level visibility before enforcing Reviewer access.
+- **Permission baseline:** Admin and Reviewer may review identity matches and eligibility cases; Data Entry may correct source data only. Enforce the relevant least-privilege fields and tenant boundary server-side for every operation.
 - **BLOCKED before live personal data:** jurisdiction/hosting, encryption, and retention/deletion safeguards remain unapproved; use synthetic data only.
 - **Spec-level:** confirm the installed ICU transliterator/API and candidate-bound configuration before implementation; these technical checks cannot change the approved matching/eligibility policy.

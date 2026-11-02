@@ -1,6 +1,6 @@
 # SPEC-01 — Foundation
 
-**Status:** draft — owner approval required
+**Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §17, [MVP master plan](../plans/MASTER-PLAN.md), and [Plan 01](../plans/PLAN-01-foundation.md). These documents are the authoritative intent baseline under the approved `spec-writer` exception.
 **Scope:** authentication, organizations and memberships, active organization, authorization, per-user locale, and the approved-design-dependent bilingual shell. No implementation is authorized by this Spec draft.
@@ -9,7 +9,7 @@
 
 | Section 17 requirement | Specification coverage |
 |---|---|
-| Authentication and basic roles | Slices 1 and 3 (detailed permission matrix confirmation remains required before authorization implementation) |
+| Authentication and basic roles | Slices 1 and 3 (approved permission matrix enforced in Slice 3) |
 | Arabic/English interface and RTL/LTR | Slices 4–5 (derive from provisional Figma baseline and verify affected screens before coding) |
 | Tenant security boundary supporting the MVP | Slices 1–3 |
 
@@ -21,31 +21,32 @@
 
 - A user may belong to multiple organizations and must explicitly select an active organization. Every switch and request revalidates current membership and fails closed on missing, stale, disabled, or guessed context.
 - Initial role keys are Admin, Reviewer, Data Entry, Viewer, with exactly one role per organization membership. Use first-party session authentication and invited organization memberships; do not create organizations through public self-service.
-- Authorization is fail-closed and uses only the owner-confirmed permission matrix below. Role names grant no unstated capabilities. The matrix is proposed for confirmation; SPEC-01 Slice 3 and all dependent authorization enforcement remain blocked until the owner confirms it.
+- Authorization is fail-closed and uses only the owner-approved permission matrix below. Role names grant no unstated capabilities. Every operation enforces authorization server-side and tenant isolation, regardless of UI visibility.
 - Tenant data is inaccessible without a validated active organization. Organization membership is the only way to enter tenant context.
 - Locale is per-user Arabic or English; rendered documents set `lang` and `dir`. All UI strings have matching `lang/en` and `lang/ar` keys. Use the provisional Figma baseline; inspect affected contexts and critical interactions before coding, and derive responsive/RTL behavior from the existing system.
 - Tenant tables always include non-null `organization_id`; policies, scoped relations, constraints, jobs and raw queries all enforce the same boundary. Audit records are append-only.
 
-## Proposed least-privilege permission matrix — owner confirmation required before authorization
+## Owner-approved least-privilege permission matrix
 
-This matrix records the approved role purpose and proposes the narrowest concrete actions needed for MVP. Only the role descriptions and one-role-per-membership rule are approved. `Proposed` rows remain unenforceable until the owner confirms exact data visibility and action scope. Every permission is limited to the active organization.
+Approved MVP authorization baseline. Each permission is limited to the member's validated active organization and is checked server-side on every operation. One role is assigned per membership; the same user may have different roles in different organizations. Data visibility is limited to the minimum fields needed for the granted operation.
 
 | Action | Admin | Reviewer | Data Entry | Viewer |
 |---|---|---|---|---|
 | Sign in, select a current membership, and change own locale | Yes | Yes | Yes | Yes |
 | Manage organization settings and memberships; invite/deactivate members and assign one role | Yes | — | — | — |
-| Upload, map, inspect quality, and correct source-derived import fields while preserving raw data | — | — | Yes | — |
-| Read person/case evidence needed to perform the assigned workflow | — | Proposed: case review only | Proposed: source rows being imported/corrected only | — |
-| Resolve match candidates and record reasoned eligibility/case review decisions | — | Yes | — | — |
-| Independently final-approve an acceptance | — | Proposed: only when a different user from the underlying decision-maker | — | — |
-| Read aggregate dashboard and owner-approved reports | Proposed: org administration context only | Proposed: review context only | Proposed: import context only | Proposed: restricted read-only |
-| View person-level reports, create/download exports, or read audit history | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval | Not granted pending explicit field/audience approval |
+| Manage programs/cycles, imports, match reviews, ranking reviews, and reports | Yes | — | — | — |
+| Upload, map, validate, and correct source data; access only necessary operational records | Yes | — | Yes | — |
+| Review identity matches, eligibility cases, rankings, rejections, and exceptions using necessary case evidence | Yes | Yes | — | — |
+| Final-approve an acceptance | Yes, only if a different person from the underlying review decision actor | — | — | — |
+| Create/download private personal-data exports using the approved field allowlist and expiry | Yes | — | — | — |
+| Read audit logs | Yes | — | — | — |
+| Read approved, restricted reports and lists; no raw files or unrestricted personal data | Yes, for organization administration and within approved field policy | Only review-case information needed for review; no general reporting/export access | Only import/source records needed for operations; no general reporting/export access | Yes, read-only and restricted to approved reports/lists and approved fields |
 
-No capability may be inferred from a role label. The owner must confirm or revise every `Proposed` cell, person-level field visibility, report audience, and export/audit access before SPEC-01 Slice 3 or any authorization-dependent slice is implemented. The final-approval distinct-actor rule is approved and must be enforced even if the exact role assignment changes.
+Reviewers cannot final-approve. Only an Admin may final-approve an acceptance, and the Admin must be a different user from the person who made the underlying review decision. Admin review authority does not waive this separation. Report audiences, personal-data fields, and export expiry must still be configured and approved before report/export generation. No role receives raw file access through Viewer permissions; Data Entry and Admin access source files only as needed for authorized import operations.
 
 ## Cross-Spec execution order
 
-1. SPEC-01 establishes authentication, active tenant context, audit base and locale; authorization-dependent actions wait for the owner-approved matrix.
+1. SPEC-01 establishes authentication, active tenant context, the approved authorization matrix, audit base and locale.
 2. SPEC-02 adds tenant-safe domain schema and import staging; it depends on SPEC-01 tenant context.
 3. SPEC-03 consumes valid staged rows and adds matching/eligibility snapshots; it depends on SPEC-02.
 4. SPEC-04 scores only SPEC-03 eligible applicants and persists immutable allocation runs.
@@ -89,8 +90,8 @@ The owner has accepted the existing Figma file as the provisional MVP visual bas
 ### Slice 3 — Organization authorization and role policy
 
 - **Goal/scope:** enforce the owner-approved role-permission matrix for every action, with membership and active organization checks.
-- **Dependencies:** Slice 1 membership; Slice 2 active context. **BLOCKED — OWNER CONFIRMATION REQUIRED** for the detailed permission matrix and person-level visibility in this Spec.
-- **Tables/constraints:** membership role assignment as decided by owner; if separate permissions are adopted, assignments must be scoped to organization. No role capability may be seeded before approval.
+- **Dependencies:** Slice 1 membership; Slice 2 active context. The owner-approved permission matrix in this Spec is authoritative.
+- **Tables/constraints:** one approved role key per organization membership. Enforce the owner-approved matrix; do not add implicit or global role grants.
 - **Classes/routes/components:** policies/gates for organization and membership; centralized authorization mapping; endpoint middleware where appropriate. No UI permission controls before approved design.
 - **Behavior:** authorization evaluates authenticated user + active organization + current membership + approved role/capability on each action; denial is default. Do not infer capabilities from role names.
 - **Authorization/tenant isolation:** guessed cross-tenant IDs deny even when the caller has a valid role elsewhere; jobs/downloads re-check explicit tenant authorization where user-facing.
@@ -98,7 +99,7 @@ The owner has accepted the existing Figma file as the provisional MVP visual bas
 - **Acceptance/tests:**
   - **AC-01.8** Given an owner-approved matrix, when each role attempts each defined action within its organization, then only approved actions succeed; policy/feature tests cover every matrix cell and negative case.
   - **AC-01.9** Given an unknown role, absent active org, or cross-org identifier, when an action is attempted, then it is denied; tests cover fail-closed behavior.
-- **Definition of Done:** owner-confirmed matrix is the single policy source; all matrix rows have tests; no role capability is inferred or silently granted.
+- **Definition of Done:** approved matrix is the single policy source; every matrix grant and denial has tests; all operations enforce server-side authorization and tenant isolation; no role capability is inferred or silently granted.
 
 ### Slice 4 — Locale persistence and request localization
 
@@ -136,6 +137,6 @@ The owner has accepted the existing Figma file as the provisional MVP visual bas
 
 ## Open questions / conflicts
 
-- **BLOCKED before SPEC-01 Slice 3 or any authorization implementation:** owner confirmation of the proposed permission matrix, exact person-level visibility, and report/export/audit capabilities. No role capability may be seeded or enforced before confirmation.
+- **Configuration checkpoint before report/export generation:** configure report audiences, approved field allowlists and export expiry. The authorization roles are approved; this checkpoint controls which data may be exposed and for how long.
 - **BLOCKED before live personal data:** jurisdiction/hosting, encryption, and retention/deletion policy. Use synthetic data until these safeguards are approved.
 - **Provisional visual baseline:** owner-approved for MVP. Slice-specific detailed visual inspection and verification of critical interactions remain required before coding; no additional locale/device variants are required when the existing design system covers them.

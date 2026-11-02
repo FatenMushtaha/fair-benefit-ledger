@@ -224,8 +224,8 @@ A pilot with one or two organizations: a past list and a new list (a sample or a
 - The launch markets, the data protection laws, and where the data is hosted.
 - Pricing.
 - The first pilot organization and its configurable import and ranking rules.
-- The detailed role-permission matrix and person-level visibility.
+- Which approved role may change participation status for withdrawal or ledger correction.
 - Report/export audiences, field allowlist and expiry values.
 - Encryption and retention/deletion safeguards before live personal data is used.
 
-The owner-approved MVP policy baseline, including human review for mixed-eligibility teams and the completed-benefit distinction, is recorded in [MVP Policy Baseline](decisions/MVP-POLICY-BASELINE.md). These decisions do not expand MVP scope.
+The owner-approved MVP policy and authorization baselines, including human review for mixed-eligibility teams and the completed-benefit distinction, are recorded in [MVP Policy Baseline](decisions/MVP-POLICY-BASELINE.md) and [SPEC-01](specs/SPEC-01-foundation.md). These decisions do not expand MVP scope.
