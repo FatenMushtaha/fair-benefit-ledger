@@ -1,7 +1,7 @@
 # MVP Policy Baseline
 
-**Recorded:** 2026-11-02  
-**Status:** Initial owner-approved policy baseline; detailed authorization matrix and final Spec approval remain pending.  
+**Recorded:** 2026-11-02
+**Status:** Initial owner-approved policy baseline; detailed authorization matrix and final Spec approval remain pending.
 **Scope:** Existing MVP Specs and the approved end-to-end distribution workflow only.
 
 This record consolidates the owner's approval of the ten MVP policy recommendations and two clarifications. It does not approve the five Specs for implementation. The Specs remain drafts until the owner gives explicit final Spec approval.
