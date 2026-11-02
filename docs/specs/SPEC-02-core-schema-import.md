@@ -3,7 +3,7 @@
 **Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §17, [MVP master plan](../plans/MASTER-PLAN.md), and [Plan 02](../plans/PLAN-02-core-schema-import.md); approved intent-baseline alternative in [spec-writer](../../.agents/skills/spec-writer/SKILL.md).
-**Scope:** tenant-safe core ledger/cycle/rules/audit schema and private, validated XLSX/CSV staging, mapping, normalization, chunk processing and quality summaries. No application changes are authorized by this draft.
+**Scope:** tenant-safe core ledger/cycle/rules/audit schema and private, validated XLSX/CSV staging, mapping, normalization, chunk processing and quality summaries. Each implementation slice requires separate owner approval.
 
 ## Section 17 traceability
 

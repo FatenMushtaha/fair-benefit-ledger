@@ -3,7 +3,7 @@
 **Status:** owner-approved — implementation still requires slice approval
 
 **Planning baseline:** owner-approved [project brief](../project-brief.md) §17, [MVP master plan](../plans/MASTER-PLAN.md), and [Plan 01](../plans/PLAN-01-foundation.md). These documents are the authoritative intent baseline under the approved `spec-writer` exception.
-**Scope:** authentication, organizations and memberships, active organization, authorization, per-user locale, and the approved-design-dependent bilingual shell. No implementation is authorized by this Spec draft.
+**Scope:** authentication, organizations and memberships, active organization, authorization, per-user locale, and the approved-design-dependent bilingual shell. Each implementation slice requires separate owner approval.
 
 ## Section 17 traceability
 
